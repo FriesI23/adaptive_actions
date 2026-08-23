@@ -1,0 +1,1808 @@
+import 'package:adaptive_actions/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('MaterialAdaptiveActionsStyle copyWith replaces selected metrics', () {
+    const original = MaterialAdaptiveActionsStyle(
+      height: 52,
+      minimumButtonWidth: 50,
+      iconButtonWidth: 46,
+      submenuButtonWidth: 30,
+      overflowButtonWidth: 44,
+      iconSize: 20,
+      iconLabelSpacing: 6,
+      horizontalPadding: 10,
+    );
+
+    final changed = original.copyWith(
+      height: 64,
+      overflowButtonWidth: 52,
+      iconSize: 24,
+    );
+
+    expect(changed.height, 64);
+    expect(changed.iconSize, 24);
+    expect(changed.minimumButtonWidth, original.minimumButtonWidth);
+    expect(changed.iconButtonWidth, original.iconButtonWidth);
+    expect(changed.submenuButtonWidth, original.submenuButtonWidth);
+    expect(changed.overflowButtonWidth, 52);
+    expect(changed.iconLabelSpacing, original.iconLabelSpacing);
+    expect(changed.horizontalPadding, original.horizontalPadding);
+  });
+
+  AdaptiveAction<String> action(
+    String id, {
+    String? label,
+    String? tooltip,
+    String? semanticLabel,
+    String? iconKey,
+    bool isDestructive = false,
+    bool isEnabled = true,
+    ActionPlacementPolicy? placementPolicy,
+  }) => AdaptiveAction.action(
+    id: ActionId(id),
+    metadata: ActionMetadata(
+      label: label ?? id,
+      tooltip: tooltip,
+      semanticLabel: semanticLabel,
+      iconKey: iconKey,
+      isDestructive: isDestructive,
+    ),
+    payload: '$id-command',
+    isEnabled: isEnabled,
+    placementPolicy: placementPolicy,
+  );
+
+  Widget pumpTarget({
+    required ActionCollection<String> actions,
+    required ValueChanged<String> onInvoke,
+    double width = 300,
+    Iterable<ActionId> primaryOrderOverride = const [],
+    Iterable<ActionId> overflowOrderOverride = const [],
+    MaterialActionIconBuilder<String>? iconBuilder,
+    MaterialActionButtonBuilder<String>? actionButtonBuilder,
+    MaterialOverflowButtonBuilder? overflowButtonBuilder,
+    MaterialActionPresentation? presentationOverride,
+    MaterialAdaptiveActionsStyle style = const MaterialAdaptiveActionsStyle(),
+    ActionLayoutResolver resolver = const ActionLayoutResolver(),
+    int? maxPrimaryActions,
+    Widget overflowIcon = const Icon(Icons.more_vert),
+    String overflowTooltip = 'More actions',
+    bool menuAnimationEnabled = false,
+    Duration fadeDuration = Duration.zero,
+    Duration resizeDuration = Duration.zero,
+  }) => MaterialApp(
+    home: Scaffold(
+      body: MaterialAdaptiveActions<String>.moreAction(
+        actions: actions,
+        onInvoke: onInvoke,
+        primaryCapacity: width,
+        primaryOrderOverride: primaryOrderOverride,
+        overflowOrderOverride: overflowOrderOverride,
+        iconBuilder: iconBuilder,
+        actionButtonBuilder: actionButtonBuilder,
+        overflowButtonBuilder: overflowButtonBuilder,
+        presentationOverride: presentationOverride,
+        style: style,
+        resolver: resolver,
+        maxPrimaryActions: maxPrimaryActions,
+        overflowIcon: overflowIcon,
+        overflowTooltip: overflowTooltip,
+        menuAnimationEnabled: menuAnimationEnabled,
+        fadeDuration: fadeDuration,
+        resizeDuration: resizeDuration,
+      ),
+    ),
+  );
+
+  Widget? iconBuilder(BuildContext context, AdaptiveAction<String> action) =>
+      switch (action.metadata.iconKey) {
+        'save' => const Icon(Icons.save),
+        'more' => const Icon(Icons.more_horiz),
+        'open' => const Icon(Icons.folder_open),
+        _ => null,
+      };
+
+  test('constructors keep generic and More overflow semantics separate', () {
+    final actions = ActionCollection<String>(roots: []);
+    final generic = MaterialAdaptiveActions<String>(
+      actions: actions,
+      onInvoke: (_) {},
+      primaryCapacity: 0,
+      overflowIcon: const Icon(Icons.apps),
+    );
+    final more = MaterialAdaptiveActions<String>.moreAction(
+      actions: actions,
+      onInvoke: (_) {},
+      primaryCapacity: 0,
+    );
+
+    expect((generic.overflowIcon as Icon).icon, Icons.apps);
+    expect(generic.overflowTooltip, isEmpty);
+    expect((more.overflowIcon as Icon).icon, Icons.more_vert);
+    expect(more.overflowTooltip, 'More actions');
+  });
+
+  testWidgets('customizes every primary button through the default builder', (
+    tester,
+  ) async {
+    final leaf = action('leaf');
+    final disabled = action('disabled', isEnabled: false);
+    final menuChild = action('menu-child');
+    final compositeChild = action('composite-child');
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('menu'),
+      metadata: const ActionMetadata(label: 'menu'),
+      children: [menuChild],
+    );
+    final composite = AdaptiveAction<String>.composite(
+      id: ActionId('composite'),
+      metadata: const ActionMetadata(label: 'composite'),
+      payload: 'composite-command',
+      children: [compositeChild],
+    );
+    final seen = <ActionId>{};
+    final enabledById = <ActionId, bool>{};
+    BoxConstraints? constraints;
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [leaf, disabled, menu, composite]),
+        onInvoke: invoked.add,
+        width: 1000,
+        actionButtonBuilder: (context, action, onPressed, defaultBuilder) {
+          seen.add(action.id);
+          enabledById[action.id] = onPressed != null;
+          return LayoutBuilder(
+            builder: (context, value) {
+              if (action.id == leaf.id) constraints = value;
+              return defaultBuilder(
+                context,
+                action,
+                onPressed == null
+                    ? null
+                    : () {
+                        invoked.add('wrapped');
+                        onPressed();
+                      },
+              );
+            },
+          );
+        },
+      ),
+    );
+
+    expect(seen, {leaf.id, disabled.id, menu.id, composite.id});
+    expect(enabledById[leaf.id], isTrue);
+    expect(enabledById[disabled.id], isFalse);
+    expect(constraints!.hasTightWidth, isTrue);
+    expect(constraints!.hasTightHeight, isTrue);
+
+    await tester.tap(find.text('leaf'));
+    expect(invoked, ['wrapped', 'leaf-command']);
+  });
+
+  testWidgets('customizes the overflow trigger without replacing its menu', (
+    tester,
+  ) async {
+    final save = action('save');
+    BoxConstraints? constraints;
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: invoked.add,
+        width: 48,
+        maxPrimaryActions: 0,
+        overflowButtonBuilder: (context, onPressed, defaultBuilder) =>
+            LayoutBuilder(
+              builder: (context, value) {
+                constraints = value;
+                return TextButton(
+                  onPressed: onPressed,
+                  child: const Text('Custom more'),
+                );
+              },
+            ),
+      ),
+    );
+
+    expect(constraints, const BoxConstraints.tightFor(width: 48, height: 48));
+    await tester.tap(find.text('Custom more'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(MenuItemButton, 'save'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['save-command']);
+  });
+
+  testWidgets('default builder replacement is render-only', (tester) async {
+    final save = action('save');
+    final replacement = action('replacement', label: 'Replacement');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 300,
+      ),
+    );
+    final resolvedWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 300,
+        actionButtonBuilder: (context, action, onPressed, defaultBuilder) =>
+            defaultBuilder(context, replacement, onPressed),
+      ),
+    );
+
+    expect(find.text('Replacement'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      resolvedWidth,
+    );
+  });
+
+  testWidgets('renders core primary order and invokes an enabled payload', (
+    tester,
+  ) async {
+    final save = action('save', iconKey: 'save');
+    final share = action('share');
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save, share]),
+        onInvoke: invoked.add,
+        primaryOrderOverride: [share.id, save.id],
+        iconBuilder: iconBuilder,
+      ),
+    );
+
+    expect(find.text('share'), findsOneWidget);
+    expect(find.text('save'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('share')).dx,
+      lessThan(tester.getTopLeft(find.text('save')).dx),
+    );
+
+    await tester.tap(find.byTooltip('save'));
+
+    expect(invoked, ['save-command']);
+  });
+
+  testWidgets('uses the icon option when label layout does not fit', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save document', iconKey: 'save');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 56,
+        iconBuilder: iconBuilder,
+      ),
+    );
+
+    expect(find.text('Save document'), findsNothing);
+    expect(find.byIcon(Icons.save), findsOneWidget);
+  });
+
+  testWidgets('forces extended and icon-only primary presentations', (
+    tester,
+  ) async {
+    final save = action(
+      'save',
+      label: 'Save document',
+      iconKey: 'save',
+      placementPolicy: ActionPlacementPolicy(placement: ActionPlacement.pinned),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 56,
+        iconBuilder: iconBuilder,
+        presentationOverride: MaterialActionPresentation.extended,
+      ),
+    );
+
+    expect(find.text('Save document'), findsOneWidget);
+    expect(find.byIcon(Icons.save), findsOneWidget);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 300,
+        iconBuilder: iconBuilder,
+        presentationOverride: MaterialActionPresentation.iconOnly,
+      ),
+    );
+
+    expect(find.text('Save document'), findsNothing);
+    expect(find.byIcon(Icons.save), findsOneWidget);
+  });
+
+  testWidgets('icon-only override falls back when an action has no icon', (
+    tester,
+  ) async {
+    final share = action('share', label: 'Share document');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [share]),
+        onInvoke: (_) {},
+        presentationOverride: MaterialActionPresentation.iconOnly,
+      ),
+    );
+
+    expect(find.text('Share document'), findsOneWidget);
+  });
+
+  testWidgets('animates only the label while an icon option contracts', (
+    tester,
+  ) async {
+    final visible = action('save', label: 'Save document', iconKey: 'save');
+    final hidden = action(
+      'save',
+      label: 'Save document',
+      iconKey: 'save',
+      placementPolicy: ActionPlacementPolicy(placement: ActionPlacement.hidden),
+    );
+
+    Widget target(
+      AdaptiveAction<String> current,
+      double capacity, {
+      Duration duration = const Duration(milliseconds: 400),
+    }) => MaterialApp(
+      home: Scaffold(
+        body: MaterialAdaptiveActions<String>.moreAction(
+          actions: ActionCollection(roots: [current]),
+          onInvoke: (_) {},
+          primaryCapacity: capacity,
+          iconBuilder: iconBuilder,
+          fadeDuration: duration,
+          resizeDuration: duration,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(target(visible, 300));
+    expect(find.text('Save document'), findsOneWidget);
+    final expandedWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+
+    await tester.pumpWidget(target(visible, 56));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Save document'), findsOneWidget);
+    expect(find.byIcon(Icons.save), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byIcon(Icons.save),
+        matching: find.byType(Opacity),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(
+        of: find.text('Save document'),
+        matching: find.byType(Opacity),
+      ),
+      findsOneWidget,
+    );
+    final contractingWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+    expect(contractingWidth, lessThan(expandedWidth));
+    expect(contractingWidth, greaterThan(56));
+    expect(find.byType(AnimatedSwitcher), findsNothing);
+
+    await tester.pumpAndSettle();
+    expect(find.text('Save document'), findsNothing);
+
+    await tester.pumpWidget(target(visible, 300));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Save document'), findsOneWidget);
+    expect(find.byIcon(Icons.save), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byIcon(Icons.save),
+        matching: find.byType(Opacity),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(
+        of: find.text('Save document'),
+        matching: find.byType(Opacity),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      inExclusiveRange(56, expandedWidth),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(target(hidden, 300));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byIcon(Icons.save), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      inExclusiveRange(0, expandedWidth),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.save), findsNothing);
+
+    await tester.pumpWidget(target(visible, 300, duration: Duration.zero));
+    expect(find.text('Save document'), findsOneWidget);
+
+    await tester.pumpWidget(target(visible, 56, duration: Duration.zero));
+    expect(find.text('Save document'), findsNothing);
+  });
+
+  testWidgets('replaces the final icon with More using complementary opacity', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save document', iconKey: 'save');
+
+    Widget target(int maximum) => pumpTarget(
+      actions: ActionCollection(roots: [save]),
+      onInvoke: (_) {},
+      width: 48,
+      maxPrimaryActions: maximum,
+      iconBuilder: iconBuilder,
+      fadeDuration: const Duration(milliseconds: 400),
+      resizeDuration: const Duration(milliseconds: 400),
+    );
+
+    await tester.pumpWidget(target(1));
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      48,
+    );
+
+    await tester.pumpWidget(target(0));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final saveOpacity = tester.widget<Opacity>(
+      find
+          .ancestor(of: find.byIcon(Icons.save), matching: find.byType(Opacity))
+          .first,
+    );
+    final moreOpacity = tester.widget<Opacity>(
+      find
+          .ancestor(
+            of: find.byTooltip('More actions'),
+            matching: find.byType(Opacity),
+          )
+          .first,
+    );
+    expect(saveOpacity.opacity + moreOpacity.opacity, closeTo(1, 0.0001));
+    expect(saveOpacity.opacity, inExclusiveRange(0, 1));
+    expect(moreOpacity.opacity, inExclusiveRange(0, 1));
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      48,
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.save), findsNothing);
+    expect(find.byTooltip('More actions'), findsOneWidget);
+
+    await tester.pumpWidget(target(1));
+    await tester.pump(const Duration(milliseconds: 200));
+    final expandingSaveOpacity = tester.widget<Opacity>(
+      find
+          .ancestor(of: find.byIcon(Icons.save), matching: find.byType(Opacity))
+          .first,
+    );
+    final outgoingMoreOpacity = tester.widget<Opacity>(
+      find
+          .ancestor(
+            of: find.byTooltip('More actions'),
+            matching: find.byType(Opacity),
+          )
+          .first,
+    );
+    expect(
+      expandingSaveOpacity.opacity + outgoingMoreOpacity.opacity,
+      closeTo(1, 0.0001),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.save), findsOneWidget);
+    expect(find.byTooltip('More actions'), findsNothing);
+  });
+
+  testWidgets('animation durations independently control option transitions', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save document', iconKey: 'save');
+
+    Widget target(
+      double width, {
+      Duration fadeDuration = const Duration(milliseconds: 400),
+      Duration resizeDuration = const Duration(milliseconds: 400),
+    }) => MaterialApp(
+      home: Scaffold(
+        body: MaterialAdaptiveActions<String>.moreAction(
+          actions: ActionCollection(roots: [save]),
+          onInvoke: (_) {},
+          primaryCapacity: width,
+          iconBuilder: iconBuilder,
+          fadeDuration: fadeDuration,
+          resizeDuration: resizeDuration,
+          switchInCurve: Curves.linear,
+          switchOutCurve: Curves.linear,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(target(300, fadeDuration: Duration.zero));
+    final expandedWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+    await tester.pumpWidget(target(56, fadeDuration: Duration.zero));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      inExclusiveRange(48, expandedWidth),
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: find.text('Save document'),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          )
+          .opacity,
+      0,
+    );
+
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(target(300, fadeDuration: Duration.zero));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(target(300, resizeDuration: Duration.zero));
+    await tester.pumpWidget(target(56, resizeDuration: Duration.zero));
+
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      expandedWidth,
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      expandedWidth,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: find.text('Save document'),
+                  matching: find.byType(Opacity),
+                )
+                .first,
+          )
+          .opacity,
+      inExclusiveRange(0, 1),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      48,
+    );
+  });
+
+  testWidgets('retargets a final-slot replacement from its painted frame', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save document', iconKey: 'save');
+
+    Widget target({required double width, required int maximum}) => pumpTarget(
+      actions: ActionCollection(roots: [save]),
+      onInvoke: (_) {},
+      width: width,
+      maxPrimaryActions: maximum,
+      iconBuilder: iconBuilder,
+      fadeDuration: const Duration(milliseconds: 400),
+      resizeDuration: const Duration(milliseconds: 400),
+    );
+
+    await tester.pumpWidget(target(width: 300, maximum: 1));
+    await tester.pumpWidget(target(width: 48, maximum: 1));
+    await tester.pump(const Duration(milliseconds: 100));
+    final widthBeforeRetarget = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+
+    await tester.pumpWidget(target(width: 48, maximum: 0));
+    final widthAfterRetarget = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+    expect(widthAfterRetarget, closeTo(widthBeforeRetarget, 0.0001));
+
+    await tester.pump(const Duration(milliseconds: 100));
+    final saveOpacity = tester.widget<Opacity>(
+      find
+          .ancestor(of: find.byIcon(Icons.save), matching: find.byType(Opacity))
+          .first,
+    );
+    final moreOpacity = tester.widget<Opacity>(
+      find
+          .ancestor(
+            of: find.byTooltip('More actions'),
+            matching: find.byType(Opacity),
+          )
+          .first,
+    );
+    expect(saveOpacity.opacity + moreOpacity.opacity, closeTo(1, 0.0001));
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      inInclusiveRange(48, widthBeforeRetarget),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.save), findsNothing);
+    expect(find.byTooltip('More actions'), findsOneWidget);
+  });
+
+  testWidgets('animates only the last collapse across multiple actions', (
+    tester,
+  ) async {
+    final actions = ActionCollection(
+      roots: [
+        action('a', label: 'A'),
+        action('b', label: 'B'),
+        action('c', label: 'C'),
+        action('d', label: 'D'),
+      ],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: actions,
+        onInvoke: (_) {},
+        width: 400,
+        maxPrimaryActions: 4,
+        fadeDuration: const Duration(milliseconds: 400),
+        resizeDuration: const Duration(milliseconds: 400),
+      ),
+    );
+    final expandedWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: actions,
+        onInvoke: (_) {},
+        width: 400,
+        maxPrimaryActions: 2,
+        fadeDuration: const Duration(milliseconds: 400),
+        resizeDuration: const Duration(milliseconds: 400),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('D'), findsNothing);
+    expect(find.text('C'), findsOneWidget);
+    expect(find.text('A'), findsOneWidget);
+    expect(find.text('B'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('C'), matching: find.byType(Opacity)),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(of: find.text('A'), matching: find.byType(Opacity)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: find.text('B'), matching: find.byType(Opacity)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(
+        of: find.byTooltip('More actions'),
+        matching: find.byType(Opacity),
+      ),
+      findsNothing,
+    );
+    expect(find.byType(Opacity), findsOneWidget);
+    final contractingWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+    expect(contractingWidth, lessThan(expandedWidth));
+
+    await tester.pumpAndSettle();
+    expect(find.text('C'), findsNothing);
+    expect(find.byTooltip('More actions'), findsOneWidget);
+  });
+
+  testWidgets('animates only the last expansion across multiple actions', (
+    tester,
+  ) async {
+    final actions = ActionCollection(
+      roots: [
+        action('a', label: 'A'),
+        action('b', label: 'B'),
+        action('c', label: 'C'),
+        action('d', label: 'D'),
+      ],
+    );
+
+    Widget target(int maximum) => pumpTarget(
+      actions: actions,
+      onInvoke: (_) {},
+      width: 400,
+      maxPrimaryActions: maximum,
+      fadeDuration: const Duration(milliseconds: 400),
+      resizeDuration: const Duration(milliseconds: 400),
+    );
+
+    await tester.pumpWidget(target(2));
+    final collapsedWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+    await tester.pumpWidget(target(4));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byTooltip('More actions'), findsNothing);
+    expect(find.text('C'), findsOneWidget);
+    expect(find.text('D'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('C'), matching: find.byType(Opacity)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: find.text('D'), matching: find.byType(Opacity)),
+      findsOneWidget,
+    );
+    expect(find.byType(Opacity), findsOneWidget);
+    final expandingWidth = tester
+        .getSize(find.byType(MaterialAdaptiveActions<String>))
+        .width;
+    expect(expandingWidth, greaterThan(collapsedWidth));
+
+    await tester.pumpAndSettle();
+    expect(find.text('D'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('D'), matching: find.byType(Opacity)),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a new layout finishes the previous outgoing action', (
+    tester,
+  ) async {
+    final actions = ActionCollection(
+      roots: [
+        action('a', label: 'A'),
+        action('b', label: 'B'),
+        action('c', label: 'C'),
+        action('d', label: 'D'),
+      ],
+    );
+
+    Widget target(int maximum) => pumpTarget(
+      actions: actions,
+      onInvoke: (_) {},
+      width: 400,
+      maxPrimaryActions: maximum,
+      fadeDuration: const Duration(milliseconds: 400),
+      resizeDuration: const Duration(milliseconds: 400),
+    );
+
+    await tester.pumpWidget(target(4));
+    await tester.pumpWidget(target(3));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('D'), findsOneWidget);
+
+    await tester.pumpWidget(target(2));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('D'), findsNothing);
+    expect(find.text('C'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('C'), matching: find.byType(Opacity)),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(of: find.text('A'), matching: find.byType(Opacity)),
+      findsNothing,
+    );
+    expect(find.byType(Opacity), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.text('C'), findsNothing);
+  });
+
+  testWidgets('capacity rebuilds keep the active target transition running', (
+    tester,
+  ) async {
+    final actions = ActionCollection(
+      roots: [
+        action('a', label: 'A'),
+        action('b', label: 'B'),
+        action('c', label: 'C'),
+        action('d', label: 'D'),
+      ],
+    );
+
+    Widget target({required double width, required int maximum}) => pumpTarget(
+      actions: actions,
+      onInvoke: (_) {},
+      width: width,
+      maxPrimaryActions: maximum,
+      fadeDuration: const Duration(milliseconds: 400),
+      resizeDuration: const Duration(milliseconds: 400),
+    );
+
+    await tester.pumpWidget(target(width: 400, maximum: 4));
+    await tester.pumpWidget(target(width: 300, maximum: 2));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('C'), findsOneWidget);
+
+    await tester.pumpWidget(target(width: 290, maximum: 2));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('C'), findsOneWidget);
+    expect(
+      find.ancestor(of: find.text('C'), matching: find.byType(Opacity)),
+      findsOneWidget,
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('C'), findsNothing);
+  });
+
+  testWidgets('applies configurable primary layout metrics', (tester) async {
+    final save = action('save', label: 'Save document', iconKey: 'save');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MaterialAdaptiveActions<String>.moreAction(
+            actions: ActionCollection(roots: [save]),
+            onInvoke: (_) {},
+            primaryCapacity: 60,
+            iconBuilder: iconBuilder,
+            style: const MaterialAdaptiveActionsStyle(
+              height: 64,
+              iconButtonWidth: 60,
+              iconSize: 24,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).height,
+      64,
+    );
+    expect(tester.getSize(find.byIcon(Icons.save)), const Size.square(24));
+  });
+
+  testWidgets('uses parent height constraints before the preferred height', (
+    tester,
+  ) async {
+    final save = action('save', iconKey: 'save');
+
+    Widget target(BoxConstraints constraints) => MaterialApp(
+      home: Scaffold(
+        body: Align(
+          child: ConstrainedBox(
+            constraints: constraints,
+            child: MaterialAdaptiveActions<String>.moreAction(
+              actions: ActionCollection(roots: [save]),
+              onInvoke: (_) {},
+              primaryCapacity: 100,
+              iconBuilder: iconBuilder,
+              presentationOverride: MaterialActionPresentation.iconOnly,
+              fadeDuration: Duration.zero,
+              resizeDuration: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(target(const BoxConstraints.tightFor(height: 20)));
+
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).height,
+      20,
+    );
+    expect(tester.getSize(find.byType(IconButton)).height, 20);
+
+    await tester.pumpWidget(target(const BoxConstraints(maxHeight: 64)));
+
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).height,
+      48,
+    );
+
+    await tester.pumpWidget(target(const BoxConstraints(maxHeight: 20)));
+
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).height,
+      20,
+    );
+  });
+
+  testWidgets('remains compatible with intrinsic-height parents', (
+    tester,
+  ) async {
+    final save = action('save', iconKey: 'save');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: IntrinsicHeight(
+            child: MaterialAdaptiveActions<String>.moreAction(
+              actions: ActionCollection(roots: [save]),
+              onInvoke: (_) {},
+              primaryCapacity: 100,
+              iconBuilder: iconBuilder,
+              fadeDuration: Duration.zero,
+              resizeDuration: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).height,
+      48,
+    );
+  });
+
+  testWidgets('composite controls match their resolver layout cost', (
+    tester,
+  ) async {
+    final open = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(label: 'Open', iconKey: 'open'),
+      payload: 'open-command',
+      children: [action('recent')],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [open]),
+        onInvoke: (_) {},
+        width: 80,
+        iconBuilder: iconBuilder,
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      80,
+    );
+    expect(
+      tester
+          .getSize(
+            find.ancestor(
+              of: find.byIcon(Icons.arrow_drop_down),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .width,
+      32,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('composite menu affordance uses caller-owned tooltip text', (
+    tester,
+  ) async {
+    final open = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(
+        label: '打开',
+        tooltip: '打开子菜单',
+        semanticLabel: '打开选项',
+      ),
+      payload: 'open-command',
+      children: [action('recent')],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [open]),
+        onInvoke: (_) {},
+      ),
+    );
+
+    final tooltip = tester.widget<Tooltip>(
+      find.ancestor(
+        of: find.byIcon(Icons.arrow_drop_down),
+        matching: find.byType(Tooltip),
+      ),
+    );
+    expect(tooltip.message, '打开子菜单');
+  });
+
+  testWidgets(
+    'provides a primary profile after a constraint placement override',
+    (tester) async {
+      final save = action(
+        'save',
+        iconKey: 'save',
+        placementPolicy: ActionPlacementPolicy(
+          placement: ActionPlacement.overflowOnly,
+        ),
+      );
+
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: ActionCollection(
+            roots: [save],
+            placementConstraints: [
+              ActionPlacementConstraints(
+                id: ActionPlacementConstraintId('promote-save'),
+                actionIds: [save.id],
+                placementOverride: ActionPlacement.pinned,
+              ),
+            ],
+          ),
+          onInvoke: (_) {},
+          iconBuilder: iconBuilder,
+        ),
+      );
+
+      expect(find.byTooltip('save'), findsOneWidget);
+    },
+  );
+
+  testWidgets('can be used directly in AppBar actions', (tester) async {
+    final save = action('save', iconKey: 'save');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+            title: const Text('Document'),
+            actions: [
+              MaterialAdaptiveActions<String>.moreAction(
+                actions: ActionCollection(roots: [save]),
+                onInvoke: (_) {},
+                primaryCapacity: 120,
+                iconBuilder: iconBuilder,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('save'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'disabled primary action keeps semantics and suppresses payload',
+    (tester) async {
+      final save = action(
+        'save',
+        tooltip: 'Save changes',
+        semanticLabel: 'Save document',
+        iconKey: 'save',
+        isEnabled: false,
+      );
+      final invoked = <String>[];
+
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: ActionCollection(roots: [save]),
+          onInvoke: invoked.add,
+          iconBuilder: iconBuilder,
+        ),
+      );
+
+      expect(find.byTooltip('Save changes'), findsOneWidget);
+      expect(find.bySemanticsLabel('Save document'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Save changes'));
+
+      expect(invoked, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'Material menu animation defaults on and reaches nested submenus',
+    (tester) async {
+      final leaf = action('leaf');
+      final nested = AdaptiveAction<String>.menu(
+        id: ActionId('nested'),
+        metadata: const ActionMetadata(label: 'Nested'),
+        children: [leaf],
+      );
+      final root = AdaptiveAction<String>.menu(
+        id: ActionId('root'),
+        metadata: const ActionMetadata(label: 'Root'),
+        children: [nested],
+      );
+
+      Widget target({bool? menuAnimationEnabled}) => MaterialApp(
+        home: Scaffold(
+          body: menuAnimationEnabled == null
+              ? MaterialAdaptiveActions<String>.moreAction(
+                  actions: ActionCollection(roots: [root]),
+                  onInvoke: (_) {},
+                  primaryCapacity: 300,
+                )
+              : MaterialAdaptiveActions<String>.moreAction(
+                  actions: ActionCollection(roots: [root]),
+                  onInvoke: (_) {},
+                  primaryCapacity: 300,
+                  menuAnimationEnabled: menuAnimationEnabled,
+                ),
+        ),
+      );
+
+      await tester.pumpWidget(target());
+      expect(
+        tester.widget<MenuAnchor>(find.byType(MenuAnchor)).animated,
+        isTrue,
+      );
+      await tester.tap(find.text('Root'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<SubmenuButton>(find.byType(SubmenuButton)).animated,
+        isTrue,
+      );
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(target(menuAnimationEnabled: false));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<MenuAnchor>(find.byType(MenuAnchor)).animated,
+        isFalse,
+      );
+      await tester.tap(find.text('Root'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<SubmenuButton>(find.byType(SubmenuButton)).animated,
+        isFalse,
+      );
+    },
+  );
+
+  testWidgets(
+    'primary menu opens direct children and dispatches their payload',
+    (tester) async {
+      final child = action('recent');
+      final menu = AdaptiveAction<String>.menu(
+        id: ActionId('more'),
+        metadata: const ActionMetadata(label: 'More', iconKey: 'more'),
+        children: [child],
+      );
+      final invoked = <String>[];
+
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: ActionCollection(roots: [menu]),
+          onInvoke: invoked.add,
+          iconBuilder: iconBuilder,
+        ),
+      );
+
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      expect(find.text('recent'), findsOneWidget);
+
+      await tester.tap(find.text('recent'));
+      await tester.pumpAndSettle();
+      expect(invoked, ['recent-command']);
+    },
+  );
+
+  testWidgets('composite primary action exposes invoke and direct menu paths', (
+    tester,
+  ) async {
+    final recent = action('recent');
+    final open = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(label: 'Open', iconKey: 'open'),
+      payload: 'open-command',
+      children: [recent],
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [open]),
+        onInvoke: invoked.add,
+        iconBuilder: iconBuilder,
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    expect(invoked, ['open-command']);
+
+    await tester.tap(find.byIcon(Icons.arrow_drop_down));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('recent'));
+    await tester.pumpAndSettle();
+
+    expect(invoked, ['open-command', 'recent-command']);
+  });
+
+  testWidgets('invocation guard dispatches only enabled non-null payloads', (
+    tester,
+  ) async {
+    final enabled = action('enabled');
+    final disabled = action('disabled', isEnabled: false);
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('menu'),
+      metadata: const ActionMetadata(label: 'Menu'),
+      children: [action('child')],
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [enabled, disabled, menu]),
+        onInvoke: invoked.add,
+        width: 1000,
+      ),
+    );
+
+    await tester.tap(find.text('enabled'));
+    await tester.tap(find.text('disabled'));
+    await tester.tap(find.text('Menu'));
+    await tester.pumpAndSettle();
+
+    expect(invoked, ['enabled-command']);
+  });
+
+  testWidgets('shows overflow trigger only for a non-empty overflow result', (
+    tester,
+  ) async {
+    final save = action('save');
+    final forcedOverflow = action(
+      'forced',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final actions = ActionCollection(roots: [save, forcedOverflow]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MaterialAdaptiveActions<String>(
+            actions: actions,
+            onInvoke: (_) {},
+            primaryCapacity: 96,
+            style: const MaterialAdaptiveActionsStyle(overflowButtonWidth: 56),
+            overflowIcon: const Icon(Icons.more_horiz),
+            overflowTooltip: 'Commands',
+            fadeDuration: Duration.zero,
+            resizeDuration: Duration.zero,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('save'), findsNothing);
+    expect(find.byTooltip('Commands'), findsOneWidget);
+    expect(tester.getSize(find.byTooltip('Commands')).width, 56);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 96,
+      ),
+    );
+
+    expect(find.text('save'), findsOneWidget);
+    expect(find.byTooltip('More actions'), findsNothing);
+  });
+
+  testWidgets('preserves final overflow sibling order and invokes a leaf', (
+    tester,
+  ) async {
+    final first = action(
+      'first',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final second = action(
+      'second',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final third = action(
+      'third',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [first, second, third]),
+        onInvoke: invoked.add,
+        width: 48,
+        overflowOrderOverride: [third.id, first.id],
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+
+    final thirdY = tester.getTopLeft(find.text('third')).dy;
+    final secondY = tester.getTopLeft(find.text('second')).dy;
+    final firstY = tester.getTopLeft(find.text('first')).dy;
+    expect(thirdY, lessThan(secondY));
+    expect(secondY, lessThan(firstY));
+
+    await tester.tap(find.text('second'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['second-command']);
+  });
+
+  testWidgets('opens arbitrary-depth submenus in declaration order', (
+    tester,
+  ) async {
+    final deepFirst = action('deep-first');
+    final deepSecond = action('deep-second');
+    final inner = AdaptiveAction<String>.menu(
+      id: ActionId('inner'),
+      metadata: const ActionMetadata(label: 'inner'),
+      children: [deepFirst, deepSecond],
+    );
+    final outerLast = action('outer-last');
+    final outer = AdaptiveAction<String>.menu(
+      id: ActionId('outer'),
+      metadata: const ActionMetadata(label: 'outer'),
+      children: [inner, outerLast],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final rootsBefore = <AdaptiveAction<String>>[outer];
+    final childrenBefore = List<AdaptiveAction<String>>.of(outer.children);
+    final deepChildrenBefore = List<AdaptiveAction<String>>.of(inner.children);
+    final collection = ActionCollection(roots: rootsBefore);
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(actions: collection, onInvoke: invoked.add, width: 48),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('outer'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('inner')).dy,
+      lessThan(tester.getTopLeft(find.text('outer-last')).dy),
+    );
+
+    await tester.tap(find.text('inner'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('deep-first')).dy,
+      lessThan(tester.getTopLeft(find.text('deep-second')).dy),
+    );
+
+    await tester.tap(find.text('deep-second'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['deep-second-command']);
+    expect(collection.roots, orderedEquals(rootsBefore));
+    expect(outer.children, orderedEquals(childrenBefore));
+    expect(inner.children, orderedEquals(deepChildrenBefore));
+  });
+
+  testWidgets('overflow composite keeps invoke and submenu behaviors', (
+    tester,
+  ) async {
+    final recent = action('recent');
+    final open = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(label: 'Open'),
+      payload: 'open-command',
+      children: [recent],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [open]),
+        onInvoke: invoked.add,
+        width: 48,
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open'), findsNWidgets(2));
+    expect(find.text('recent'), findsOneWidget);
+    await tester.tap(find.text('Open').last);
+    await tester.pumpAndSettle();
+    expect(invoked, ['open-command']);
+
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('recent'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['open-command', 'recent-command']);
+  });
+
+  testWidgets('disabled overflow branch suppresses payload and submenu', (
+    tester,
+  ) async {
+    final child = action('blocked-child');
+    final disabled = AdaptiveAction<String>.composite(
+      id: ActionId('disabled'),
+      metadata: const ActionMetadata(
+        label: 'Disabled',
+        tooltip: 'Unavailable command',
+        semanticLabel: 'Disabled command',
+        iconKey: 'open',
+        isDestructive: true,
+      ),
+      payload: 'disabled-command',
+      children: [child],
+      isEnabled: false,
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [disabled]),
+        onInvoke: invoked.add,
+        width: 48,
+        iconBuilder: iconBuilder,
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Unavailable command'), findsOneWidget);
+    expect(find.bySemanticsLabel('Disabled command'), findsOneWidget);
+    expect(find.byIcon(Icons.folder_open), findsOneWidget);
+    await tester.tap(find.text('Disabled'));
+    await tester.pumpAndSettle();
+
+    expect(invoked, isEmpty);
+    expect(find.text('blocked-child'), findsNothing);
+  });
+
+  testWidgets('overflow menu supports keyboard invocation', (tester) async {
+    final run = action(
+      'run',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [run]),
+        onInvoke: invoked.add,
+        width: 48,
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('run'), findsOneWidget);
+
+    final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await pointer.moveTo(tester.getCenter(find.text('run')));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await pointer.removePointer();
+
+    expect(invoked, ['run-command']);
+  });
+
+  testWidgets('integrates placement retention and both region orders', (
+    tester,
+  ) async {
+    final low = action(
+      'low',
+      label: 'L',
+      placementPolicy: ActionPlacementPolicy(
+        automaticPreference: AutomaticPlacementPreference(
+          retentionPriority: PrimaryRetentionPriority.low,
+        ),
+      ),
+    );
+    final pinned = action(
+      'pinned',
+      label: 'P',
+      placementPolicy: ActionPlacementPolicy(placement: ActionPlacement.pinned),
+    );
+    final high = action(
+      'high',
+      label: 'H',
+      placementPolicy: ActionPlacementPolicy(
+        automaticPreference: AutomaticPlacementPreference(
+          retentionPriority: PrimaryRetentionPriority.high,
+        ),
+      ),
+    );
+    final overflowOnly = action(
+      'overflow',
+      label: 'O',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final hidden = action(
+      'hidden',
+      label: 'X',
+      placementPolicy: ActionPlacementPolicy(placement: ActionPlacement.hidden),
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(
+          roots: [low, pinned, high, overflowOnly, hidden],
+        ),
+        onInvoke: invoked.add,
+        width: 144,
+        primaryOrderOverride: [high.id, pinned.id],
+        overflowOrderOverride: [overflowOnly.id, low.id],
+      ),
+    );
+
+    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(find.text('L'), findsNothing);
+    expect(find.text('O'), findsNothing);
+    expect(find.text('X'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('H')).dx,
+      lessThan(tester.getTopLeft(find.text('P')).dx),
+    );
+
+    await tester.tap(find.text('H'));
+    expect(invoked, ['high-command']);
+
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('O')).dy,
+      lessThan(tester.getTopLeft(find.text('L')).dy),
+    );
+    await tester.tap(find.text('O'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['high-command', 'overflow-command']);
+  });
+
+  testWidgets('leaves unsatisfied pinned overflow behavior to the caller', (
+    tester,
+  ) async {
+    final pinned = action(
+      'pinned',
+      label: 'Pinned command',
+      placementPolicy: ActionPlacementPolicy(placement: ActionPlacement.pinned),
+    );
+    final delegate = _RecordingPlacementDelegate();
+    final resolver = ActionLayoutResolver(placementDelegate: delegate);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [pinned]),
+        onInvoke: (_) {},
+        width: 24,
+        resolver: resolver,
+      ),
+    );
+
+    expect(find.text('Pinned command'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(
+      tester.getSize(find.widgetWithText(TextButton, 'Pinned command')).width,
+      greaterThan(24),
+    );
+    expect(
+      delegate.diagnosticCodes,
+      contains(ResolutionDiagnosticCode.unsatisfiedPinnedConstraint),
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [pinned]),
+        onInvoke: (_) {},
+        width: 300,
+        resolver: resolver,
+      ),
+    );
+
+    expect(find.text('Pinned command'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(delegate.resolveCount, 2);
+  });
+
+  testWidgets('renders a scripted result without replacing its decisions', (
+    tester,
+  ) async {
+    final roots = [
+      action('a', label: 'A'),
+      action('b', label: 'B'),
+      action('c', label: 'C'),
+      action('d', label: 'D'),
+      action('e', label: 'E'),
+    ];
+    final rootsBefore = List<AdaptiveAction<String>>.of(roots);
+    final collection = ActionCollection(roots: roots);
+    final delegate = _ScriptedPlacementDelegate();
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: collection,
+        onInvoke: invoked.add,
+        resolver: ActionLayoutResolver(placementDelegate: delegate),
+      ),
+    );
+
+    expect(
+      tester.getTopLeft(find.text('C')).dx,
+      lessThan(tester.getTopLeft(find.text('A')).dx),
+    );
+    expect(find.text('B'), findsNothing);
+    expect(find.text('D'), findsNothing);
+    expect(find.text('E'), findsNothing);
+    await tester.tap(find.text('C'));
+
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.text('D')).dy,
+      lessThan(tester.getTopLeft(find.text('B')).dy),
+    );
+    await tester.tap(find.text('D'));
+    await tester.pumpAndSettle();
+
+    expect(invoked, ['c-command', 'd-command']);
+    expect(collection.roots, orderedEquals(rootsBefore));
+    expect(delegate.resolveCount, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('repeated rebuilds keep inputs and callbacks stable', (
+    tester,
+  ) async {
+    final first = action('first');
+    final second = action('second');
+    final third = action('third');
+    final roots = [first, second, third];
+    final primaryOrder = [second.id, first.id];
+    final overflowOrder = [third.id];
+    final rootsBefore = List<AdaptiveAction<String>>.of(roots);
+    final primaryOrderBefore = List<ActionId>.of(primaryOrder);
+    final overflowOrderBefore = List<ActionId>.of(overflowOrder);
+    final collection = ActionCollection(roots: roots);
+    final delegate = _RecordingPlacementDelegate();
+    final resolver = ActionLayoutResolver(placementDelegate: delegate);
+    final invoked = <String>[];
+
+    for (var rebuild = 0; rebuild < 3; rebuild += 1) {
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: collection,
+          onInvoke: invoked.add,
+          primaryOrderOverride: primaryOrder,
+          overflowOrderOverride: overflowOrder,
+          maxPrimaryActions: 2,
+          resolver: resolver,
+        ),
+      );
+    }
+
+    expect(delegate.resolveCount, 3);
+    expect(collection.roots, orderedEquals(rootsBefore));
+    expect(primaryOrder, orderedEquals(primaryOrderBefore));
+    expect(overflowOrder, orderedEquals(overflowOrderBefore));
+    expect(
+      tester.getTopLeft(find.text('second')).dx,
+      lessThan(tester.getTopLeft(find.text('first')).dx),
+    );
+
+    await tester.tap(find.text('first'));
+    expect(invoked, ['first-command']);
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('third'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['first-command', 'third-command']);
+  });
+}
+
+final class _RecordingPlacementDelegate implements ActionPlacementDelegate {
+  final _delegate = const DefaultActionPlacementDelegate();
+
+  int resolveCount = 0;
+  List<ResolutionDiagnosticCode> diagnosticCodes = const [];
+
+  @override
+  ActionPlacementResult<T> resolve<T extends Object>(
+    ActionLayoutRequest<T> request,
+  ) {
+    resolveCount += 1;
+    final result = _delegate.resolve(request);
+    diagnosticCodes = [
+      for (final diagnostic in result.diagnostics) diagnostic.code,
+    ];
+    return result;
+  }
+}
+
+final class _ScriptedPlacementDelegate implements ActionPlacementDelegate {
+  int resolveCount = 0;
+
+  @override
+  ActionPlacementResult<T> resolve<T extends Object>(
+    ActionLayoutRequest<T> request,
+  ) {
+    resolveCount += 1;
+    final roots = request.actions.roots;
+    ResolvedPrimaryAction<T> primary(AdaptiveAction<T> action) {
+      final profile = request.constraints.profileFor(action.id)!;
+      return ResolvedPrimaryAction(
+        action: action,
+        optionId: profile.options.first.id,
+      );
+    }
+
+    return ActionPlacementResult(
+      primary: [primary(roots[2]), primary(roots[0])],
+      overflow: [roots[3], roots[1]],
+      hidden: [
+        HiddenAction(action: roots[4], reason: HiddenActionReason.forcedHidden),
+      ],
+      diagnostics: [
+        ResolutionDiagnostic(
+          code: ResolutionDiagnosticCode.forcedHidden,
+          actionIds: [roots[4].id],
+        ),
+      ],
+    );
+  }
+}
