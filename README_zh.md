@@ -199,7 +199,7 @@ AdaptiveAction<DocumentCommand>.menu(
   metadata: const ActionMetadata(label: 'Share'),
   children: [
     shareLink,
-    const AdaptiveMenuDivider<DocumentCommand>(showInPrimary: false),
+    const AdaptiveMenuDivider<DocumentCommand>.menuOnly(),
     deleteShare,
   ],
 )
@@ -211,10 +211,7 @@ AdaptiveAction<DocumentCommand>.menu(
 final documentActions = ActionCollection<DocumentCommand>.withEntries(
   entries: [
     save,
-    const AdaptiveMenuDivider<DocumentCommand>(
-      showInPrimary: false,
-      showInMenu: true,
-    ),
+    const AdaptiveMenuDivider<DocumentCommand>.menuOnly(),
     delete,
   ],
 );
@@ -223,7 +220,8 @@ final documentActions = ActionCollection<DocumentCommand>.withEntries(
 `showInPrimary` 控制直接显示的 action 之间是否绘制竖向分隔线；`showInMenu` 控制
 action menu 和 overflow menu 中的分隔符。两项都设为 `false` 时 divider 会保留在
 声明中，但不会显示。divider 不参与 action placement；如果某个区域内边界任一侧没有
-与它相邻的已声明 action，该分隔符会自动省略。
+与它相邻的已声明 action，该分隔符会自动省略。也可以使用 `menuOnly()`、
+`primaryOnly()` 或 `hidden()` 简写对应的显示配置。
 
 ### 覆盖显示顺序
 

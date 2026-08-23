@@ -161,7 +161,7 @@ void main() {
       () {
         final first = action('first');
         final second = action('second');
-        const divider = AdaptiveMenuDivider<String>(showInPrimary: false);
+        const divider = AdaptiveMenuDivider<String>.menuOnly();
         final input = <AdaptiveMenuEntry<String>>[first, divider, second];
         final collection = ActionCollection<String>.withEntries(entries: input);
 
@@ -196,10 +196,7 @@ void main() {
     test('withEntries accepts a divider hidden in both targets', () {
       final first = action('first');
       final second = action('second');
-      const divider = AdaptiveMenuDivider<String>(
-        showInPrimary: false,
-        showInMenu: false,
-      );
+      const divider = AdaptiveMenuDivider<String>.hidden();
 
       final collection = ActionCollection<String>.withEntries(
         entries: [first, divider, second],

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+> **Breaking change:** `AdaptiveAction.children` changed from
+> `List<AdaptiveAction<T>>` to `List<AdaptiveMenuEntry<T>>`. Callers that read
+> children directly must now handle or filter `AdaptiveMenuDivider<T>` entries.
+
+- Added configurable dividers for nested menus and top-level actions across
+  Material and Cupertino.
+
 ## 0.1.2
 
 - Added optional menu subtitles through `ActionMetadata.subtitle`, with native

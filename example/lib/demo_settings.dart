@@ -102,16 +102,6 @@ extension DemoDividerVisibilityValue on DemoDividerVisibility {
     DemoDividerVisibility.primaryOnly => 'Primary only (true / false)',
     DemoDividerVisibility.hidden => 'Hidden (false / false)',
   };
-
-  bool get showInPrimary => switch (this) {
-    DemoDividerVisibility.both || DemoDividerVisibility.primaryOnly => true,
-    DemoDividerVisibility.menuOnly || DemoDividerVisibility.hidden => false,
-  };
-
-  bool get showInMenu => switch (this) {
-    DemoDividerVisibility.both || DemoDividerVisibility.menuOnly => true,
-    DemoDividerVisibility.primaryOnly || DemoDividerVisibility.hidden => false,
-  };
 }
 
 extension MaterialActionPresentationLabel on MaterialActionPresentation {

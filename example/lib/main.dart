@@ -469,6 +469,15 @@ final class _AdaptiveActionsDemoPageState
     final overflowOnly = ActionPlacementPolicy(
       placement: ActionPlacement.overflowOnly,
     );
+    final divider = switch (_dividerVisibility) {
+      DemoDividerVisibility.both => const AdaptiveMenuDivider<DemoCommand>(),
+      DemoDividerVisibility.menuOnly =>
+        const AdaptiveMenuDivider<DemoCommand>.menuOnly(),
+      DemoDividerVisibility.primaryOnly =>
+        const AdaptiveMenuDivider<DemoCommand>.primaryOnly(),
+      DemoDividerVisibility.hidden =>
+        const AdaptiveMenuDivider<DemoCommand>.hidden(),
+    };
 
     return [
       AdaptiveAction.action(
@@ -482,10 +491,7 @@ final class _AdaptiveActionsDemoPageState
         isEnabled: _enabled,
         placementPolicy: savePolicy,
       ),
-      AdaptiveMenuDivider<DemoCommand>(
-        showInPrimary: _dividerVisibility.showInPrimary,
-        showInMenu: _dividerVisibility.showInMenu,
-      ),
+      divider,
       AdaptiveAction.composite(
         id: ActionId('open'),
         metadata: const ActionMetadata(label: 'Open', iconKey: 'open'),
@@ -514,10 +520,7 @@ final class _AdaptiveActionsDemoPageState
           ),
         ],
       ),
-      AdaptiveMenuDivider<DemoCommand>(
-        showInPrimary: _dividerVisibility.showInPrimary,
-        showInMenu: _dividerVisibility.showInMenu,
-      ),
+      divider,
       AdaptiveAction.menu(
         id: ActionId('share'),
         metadata: const ActionMetadata(label: 'Share', iconKey: 'share'),
@@ -543,10 +546,7 @@ final class _AdaptiveActionsDemoPageState
           ),
         ],
       ),
-      AdaptiveMenuDivider<DemoCommand>(
-        showInPrimary: _dividerVisibility.showInPrimary,
-        showInMenu: _dividerVisibility.showInMenu,
-      ),
+      divider,
       AdaptiveAction.action(
         id: ActionId('delete'),
         metadata: const ActionMetadata(

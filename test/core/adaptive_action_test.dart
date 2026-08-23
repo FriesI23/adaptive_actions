@@ -192,10 +192,7 @@ void main() {
     });
 
     test('allows a divider to be hidden in both targets', () {
-      const divider = AdaptiveMenuDivider<String>(
-        showInPrimary: false,
-        showInMenu: false,
-      );
+      const divider = AdaptiveMenuDivider<String>.hidden();
       final menu = AdaptiveAction<String>.menu(
         id: ActionId('menu'),
         metadata: const ActionMetadata(label: 'Menu'),
@@ -205,6 +202,19 @@ void main() {
       expect(menu.children, contains(divider));
       expect(divider.showInPrimary, isFalse);
       expect(divider.showInMenu, isFalse);
+    });
+
+    test('provides constructors for each divider visibility target', () {
+      const menuOnly = AdaptiveMenuDivider<String>.menuOnly();
+      const primaryOnly = AdaptiveMenuDivider<String>.primaryOnly();
+      const hidden = AdaptiveMenuDivider<String>.hidden();
+
+      expect(menuOnly.showInPrimary, isFalse);
+      expect(menuOnly.showInMenu, isTrue);
+      expect(primaryOnly.showInPrimary, isTrue);
+      expect(primaryOnly.showInMenu, isFalse);
+      expect(hidden.showInPrimary, isFalse);
+      expect(hidden.showInMenu, isFalse);
     });
 
     test('has structural equality and hashing', () {

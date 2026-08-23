@@ -209,7 +209,7 @@ AdaptiveAction<DocumentCommand>.menu(
   metadata: const ActionMetadata(label: 'Share'),
   children: [
     shareLink,
-    const AdaptiveMenuDivider<DocumentCommand>(showInPrimary: false),
+    const AdaptiveMenuDivider<DocumentCommand>.menuOnly(),
     deleteShare,
   ],
 )
@@ -222,10 +222,7 @@ actions:
 final documentActions = ActionCollection<DocumentCommand>.withEntries(
   entries: [
     save,
-    const AdaptiveMenuDivider<DocumentCommand>(
-      showInPrimary: false,
-      showInMenu: true,
-    ),
+    const AdaptiveMenuDivider<DocumentCommand>.menuOnly(),
     delete,
   ],
 );
@@ -235,7 +232,8 @@ final documentActions = ActionCollection<DocumentCommand>.withEntries(
 actions. `showInMenu` controls dividers in action and overflow menus. When both
 are `false`, the divider remains declared but is not rendered. Dividers never
 participate in action placement, and a boundary is omitted when either side has
-no adjacent declared action in that region.
+no adjacent declared action in that region. Use `menuOnly()`, `primaryOnly()`,
+or `hidden()` as shorthand for the corresponding visibility settings.
 
 ### Display order overrides
 

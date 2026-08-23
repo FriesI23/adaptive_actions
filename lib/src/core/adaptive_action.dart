@@ -26,6 +26,21 @@ final class AdaptiveMenuDivider<T extends Object> extends AdaptiveMenuEntry<T> {
     this.showInMenu = true,
   });
 
+  /// Creates a divider that is drawn only inside menus.
+  const AdaptiveMenuDivider.menuOnly()
+    : showInPrimary = false,
+      showInMenu = true;
+
+  /// Creates a divider that is drawn only between primary actions.
+  const AdaptiveMenuDivider.primaryOnly()
+    : showInPrimary = true,
+      showInMenu = false;
+
+  /// Creates a declared divider that is not drawn in either target.
+  const AdaptiveMenuDivider.hidden()
+    : showInPrimary = false,
+      showInMenu = false;
+
   /// Whether a top-level divider is drawn between primary actions.
   ///
   /// This has no effect when the divider is nested inside an action menu.
