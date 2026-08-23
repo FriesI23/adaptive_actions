@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Added optional menu subtitles through `ActionMetadata.subtitle`, with native
+  Cupertino presentation and Material supporting-text styling.
+- Preserved primary action layout while extending nested, composite, disabled,
+  destructive, accessible, and large-text menu behavior.
+
 ## 0.1.1
 
 - Expanded the bilingual README feature overview and visual gallery with
