@@ -1393,6 +1393,111 @@ void main() {
     },
   );
 
+  testWidgets('primary menu renders a PopupMenuDivider between actions', (
+    tester,
+  ) async {
+    final first = action('first');
+    final second = action('second');
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('more'),
+      metadata: const ActionMetadata(label: 'More', iconKey: 'more'),
+      children: [first, const AdaptiveMenuDivider<String>(), second],
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [menu]),
+        onInvoke: invoked.add,
+        iconBuilder: iconBuilder,
+      ),
+    );
+
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PopupMenuDivider), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(MenuItemButton, 'second'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['second-command']);
+  });
+
+  testWidgets('top-level divider independently targets primary and menu', (
+    tester,
+  ) async {
+    final first = action('first');
+    final second = action('second');
+    final menuOnly = ActionCollection<String>.withEntries(
+      entries: [
+        first,
+        const AdaptiveMenuDivider<String>(showInPrimary: false),
+        second,
+      ],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(actions: menuOnly, onInvoke: (_) {}, width: 300),
+    );
+    expect(find.byType(VerticalDivider), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: menuOnly,
+        onInvoke: (_) {},
+        width: 48,
+        maxPrimaryActions: 0,
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PopupMenuDivider), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    final primaryOnly = ActionCollection<String>.withEntries(
+      entries: [
+        first,
+        const AdaptiveMenuDivider<String>(showInMenu: false),
+        second,
+      ],
+    );
+    await tester.pumpWidget(
+      pumpTarget(actions: primaryOnly, onInvoke: (_) {}, width: 300),
+    );
+    expect(find.byType(VerticalDivider), findsOneWidget);
+    expect(tester.getSize(find.byType(VerticalDivider)).width, 16);
+  });
+
+  testWidgets('menu-hidden nested divider leaves no placeholder', (
+    tester,
+  ) async {
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('more'),
+      metadata: const ActionMetadata(label: 'More', iconKey: 'more'),
+      children: [
+        action('first'),
+        const AdaptiveMenuDivider<String>(showInMenu: false),
+        action('second'),
+      ],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [menu]),
+        onInvoke: (_) {},
+        iconBuilder: iconBuilder,
+      ),
+    );
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PopupMenuDivider), findsNothing);
+    expect(find.widgetWithText(MenuItemButton, 'first'), findsOneWidget);
+    expect(find.widgetWithText(MenuItemButton, 'second'), findsOneWidget);
+  });
+
   testWidgets('composite primary action exposes invoke and direct menu paths', (
     tester,
   ) async {
@@ -1562,8 +1667,10 @@ void main() {
       ),
     );
     final rootsBefore = <AdaptiveAction<String>>[outer];
-    final childrenBefore = List<AdaptiveAction<String>>.of(outer.children);
-    final deepChildrenBefore = List<AdaptiveAction<String>>.of(inner.children);
+    final childrenBefore = List<AdaptiveMenuEntry<String>>.of(outer.children);
+    final deepChildrenBefore = List<AdaptiveMenuEntry<String>>.of(
+      inner.children,
+    );
     final collection = ActionCollection(roots: rootsBefore);
     final invoked = <String>[];
 

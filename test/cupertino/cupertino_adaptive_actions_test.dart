@@ -598,6 +598,119 @@ void main() {
     },
   );
 
+  testWidgets('primary menu renders a CupertinoMenuDivider between actions', (
+    tester,
+  ) async {
+    final first = action('first');
+    final second = action('second');
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('more'),
+      metadata: const ActionMetadata(label: 'More', iconKey: 'more'),
+      children: [first, const AdaptiveMenuDivider<String>(), second],
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [menu]),
+        onInvoke: invoked.add,
+        actionIconBuilder: iconBuilder,
+      ),
+    );
+
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CupertinoMenuDivider), findsOneWidget);
+
+    await tester.tap(find.text('second'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['second-command']);
+  });
+
+  testWidgets('top-level divider independently targets primary and menu', (
+    tester,
+  ) async {
+    Finder primaryDivider() => find.byWidgetPredicate(
+      (widget) =>
+          widget is ColoredBox &&
+          widget.child is SizedBox &&
+          (widget.child! as SizedBox).width != null,
+      description: 'Cupertino primary divider',
+    );
+
+    final first = action('first');
+    final second = action('second');
+    final menuOnly = ActionCollection<String>.withEntries(
+      entries: [
+        first,
+        const AdaptiveMenuDivider<String>(showInPrimary: false),
+        second,
+      ],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(actions: menuOnly, onInvoke: (_) {}, width: 300),
+    );
+    expect(primaryDivider(), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: menuOnly,
+        onInvoke: (_) {},
+        width: 44,
+        maxPrimaryActions: 0,
+      ),
+    );
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+    expect(find.byType(CupertinoMenuDivider), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    final primaryOnly = ActionCollection<String>.withEntries(
+      entries: [
+        first,
+        const AdaptiveMenuDivider<String>(showInMenu: false),
+        second,
+      ],
+    );
+    await tester.pumpWidget(
+      pumpTarget(actions: primaryOnly, onInvoke: (_) {}, width: 300),
+    );
+    expect(primaryDivider(), findsOneWidget);
+    expect(tester.getSize(primaryDivider()).height, 28);
+  });
+
+  testWidgets('menu-hidden nested divider leaves no placeholder', (
+    tester,
+  ) async {
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('more'),
+      metadata: const ActionMetadata(label: 'More', iconKey: 'more'),
+      children: [
+        action('first'),
+        const AdaptiveMenuDivider<String>(showInMenu: false),
+        action('second'),
+      ],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [menu]),
+        onInvoke: (_) {},
+        actionIconBuilder: iconBuilder,
+      ),
+    );
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CupertinoMenuDivider), findsNothing);
+    expect(find.text('first'), findsOneWidget);
+    expect(find.text('second'), findsOneWidget);
+  });
+
   testWidgets('composite primary preserves invoke and submenu paths', (
     tester,
   ) async {

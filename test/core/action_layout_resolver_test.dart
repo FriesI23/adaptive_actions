@@ -104,6 +104,95 @@ void main() {
       ]);
     });
 
+    test('projects configured divider boundaries into each visible region', () {
+      final first = action('first');
+      final second = action('second');
+      final third = action('third');
+      final actions = ActionCollection<String>.withEntries(
+        entries: [
+          first,
+          const AdaptiveMenuDivider<String>(showInMenu: false),
+          second,
+          const AdaptiveMenuDivider<String>(showInPrimary: false),
+          third,
+        ],
+      );
+      ActionLayoutRequest<String> dividerRequest({
+        required double capacity,
+        List<ActionId> primaryOverride = const [],
+      }) => ActionLayoutRequest(
+        actions: actions,
+        constraints: ActionLayoutConstraints(
+          primaryCapacity: capacity,
+          profiles: [costs('first'), costs('second'), costs('third')],
+        ),
+        capabilities: const RendererCapabilities(),
+        primaryOrderOverride: primaryOverride,
+      );
+      const resolver = ActionLayoutResolver();
+
+      final wide = resolver.resolve(dividerRequest(capacity: 30));
+      final split = resolver.resolve(dividerRequest(capacity: 10));
+      final reordered = resolver.resolve(
+        dividerRequest(
+          capacity: 30,
+          primaryOverride: [third.id, second.id, first.id],
+        ),
+      );
+      final overflow = const ActionLayoutResolver(
+        placementDelegate: _OverflowPlacementDelegate(),
+      ).resolve(dividerRequest(capacity: 30));
+
+      expect(wide.primaryDividerBeforeActionIds, [second.id]);
+      expect(wide.overflowDividerBeforeActionIds, isEmpty);
+      expect(primaryIds(split), [first.id]);
+      expect(overflowIds(split), [second.id, third.id]);
+      expect(split.primaryDividerBeforeActionIds, isEmpty);
+      expect(split.overflowDividerBeforeActionIds, [third.id]);
+      expect(reordered.primaryDividerBeforeActionIds, [first.id]);
+      expect(overflow.primaryDividerBeforeActionIds, isEmpty);
+      expect(overflow.overflowDividerBeforeActionIds, [third.id]);
+    });
+
+    test('omits a divider when its adjacent actions split regions', () {
+      final first = action('first');
+      final edgeBefore = action(
+        'edge-before',
+        placement: ActionPlacement.overflowOnly,
+      );
+      final edgeAfter = action('edge-after');
+      final last = action('last');
+      final actions = ActionCollection<String>.withEntries(
+        entries: [
+          first,
+          edgeBefore,
+          const AdaptiveMenuDivider<String>(),
+          edgeAfter,
+          last,
+        ],
+      );
+      final layout = const ActionLayoutResolver().resolve(
+        ActionLayoutRequest(
+          actions: actions,
+          constraints: ActionLayoutConstraints(
+            primaryCapacity: 30,
+            profiles: [
+              costs('first'),
+              costs('edge-before'),
+              costs('edge-after'),
+              costs('last'),
+            ],
+          ),
+          capabilities: const RendererCapabilities(),
+        ),
+      );
+
+      expect(primaryIds(layout), [first.id, edgeAfter.id, last.id]);
+      expect(overflowIds(layout), [edgeBefore.id]);
+      expect(layout.primaryDividerBeforeActionIds, isEmpty);
+      expect(layout.overflowDividerBeforeActionIds, isEmpty);
+    });
+
     test(
       'keeps unspecified slots for full, partial, and unknown overrides',
       () {

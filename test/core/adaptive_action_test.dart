@@ -120,7 +120,32 @@ void main() {
         children: [submenu],
       );
 
-      expect(root.children.single.children, [first, second]);
+      expect((root.children.single as AdaptiveAction<String>).children, [
+        first,
+        second,
+      ]);
+    });
+
+    test('preserves menu dividers without giving them action semantics', () {
+      final first = action('first');
+      final second = action('second');
+      const divider = AdaptiveMenuDivider<String>();
+      final menu = AdaptiveAction<String>.menu(
+        id: ActionId('menu'),
+        metadata: const ActionMetadata(label: 'Menu'),
+        children: [first, divider, second],
+      );
+
+      expect(menu.children, [first, divider, second]);
+      expect(divider, const AdaptiveMenuDivider<String>());
+      expect(divider.hashCode, const AdaptiveMenuDivider<String>().hashCode);
+      expect(divider.showInPrimary, isTrue);
+      expect(divider.showInMenu, isTrue);
+      expect(
+        divider.toString(),
+        'AdaptiveMenuDivider<String>(showInPrimary: true, showInMenu: true)',
+      );
+      expect(ActionCollection<String>(roots: [menu]).roots.single, same(menu));
     });
 
     test('defensively copies and exposes an unmodifiable child list', () {
@@ -138,7 +163,7 @@ void main() {
       expect(() => menu.children.add(action('third')), throwsUnsupportedError);
     });
 
-    test('rejects empty menu and composite child lists', () {
+    test('rejects empty or divider-only child lists', () {
       expect(
         () => AdaptiveAction<String>.menu(
           id: ActionId('menu'),
@@ -156,6 +181,30 @@ void main() {
         ),
         throwsArgumentError,
       );
+      expect(
+        () => AdaptiveAction<String>.menu(
+          id: ActionId('divider-only'),
+          metadata: const ActionMetadata(label: 'Divider only'),
+          children: const [AdaptiveMenuDivider<String>()],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('allows a divider to be hidden in both targets', () {
+      const divider = AdaptiveMenuDivider<String>(
+        showInPrimary: false,
+        showInMenu: false,
+      );
+      final menu = AdaptiveAction<String>.menu(
+        id: ActionId('menu'),
+        metadata: const ActionMetadata(label: 'Menu'),
+        children: [action('first'), divider, action('second')],
+      );
+
+      expect(menu.children, contains(divider));
+      expect(divider.showInPrimary, isFalse);
+      expect(divider.showInMenu, isFalse);
     });
 
     test('has structural equality and hashing', () {

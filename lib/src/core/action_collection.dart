@@ -21,7 +21,36 @@ final class ActionCollection<T extends Object> {
       placementConstraints,
     );
     _ActionCollectionValidator(immutableRoots, immutableConstraints).validate();
-    return ActionCollection._(immutableRoots, immutableConstraints);
+    return ActionCollection._(
+      entries: List<AdaptiveMenuEntry<T>>.unmodifiable(immutableRoots),
+      roots: immutableRoots,
+      placementConstraints: immutableConstraints,
+    );
+  }
+
+  /// Creates a collection whose top-level declaration may contain dividers.
+  ///
+  /// Only [AdaptiveAction] entries become [roots] and participate in layout
+  /// placement. [AdaptiveMenuDivider] entries retain group boundaries for the
+  /// final primary and overflow renderings. Divider-only declarations resolve
+  /// like an empty action collection.
+  factory ActionCollection.withEntries({
+    required Iterable<AdaptiveMenuEntry<T>> entries,
+    Iterable<ActionPlacementConstraints> placementConstraints = const [],
+  }) {
+    final immutableEntries = List<AdaptiveMenuEntry<T>>.unmodifiable(entries);
+    final immutableRoots = List<AdaptiveAction<T>>.unmodifiable(
+      immutableEntries.whereType<AdaptiveAction<T>>(),
+    );
+    final immutableConstraints = List<ActionPlacementConstraints>.unmodifiable(
+      placementConstraints,
+    );
+    _ActionCollectionValidator(immutableRoots, immutableConstraints).validate();
+    return ActionCollection._(
+      entries: immutableEntries,
+      roots: immutableRoots,
+      placementConstraints: immutableConstraints,
+    );
   }
 
   /// Creates a collection from normalized declaration entries.
@@ -44,7 +73,14 @@ final class ActionCollection<T extends Object> {
     );
   }
 
-  ActionCollection._(this.roots, this.placementConstraints);
+  ActionCollection._({
+    required this.entries,
+    required this.roots,
+    required this.placementConstraints,
+  });
+
+  /// Top-level actions and divider boundaries in declaration order.
+  final List<AdaptiveMenuEntry<T>> entries;
 
   /// Top-level actions in stable display order.
   final List<AdaptiveAction<T>> roots;
@@ -56,7 +92,7 @@ final class ActionCollection<T extends Object> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ActionCollection<T> &&
-          const ListEquality<Object?>().equals(roots, other.roots) &&
+          const ListEquality<Object?>().equals(entries, other.entries) &&
           const ListEquality<Object?>().equals(
             placementConstraints,
             other.placementConstraints,
@@ -64,13 +100,13 @@ final class ActionCollection<T extends Object> {
 
   @override
   int get hashCode => Object.hash(
-    const ListEquality<Object?>().hash(roots),
+    const ListEquality<Object?>().hash(entries),
     const ListEquality<Object?>().hash(placementConstraints),
   );
 
   @override
   String toString() =>
-      'ActionCollection(roots: ${roots.length}, '
+      'ActionCollection(entries: ${entries.length}, roots: ${roots.length}, '
       'placementConstraints: ${placementConstraints.length})';
 }
 
@@ -107,7 +143,9 @@ final class _ActionCollectionValidator<T extends Object> {
 
       visiting.add(action);
       for (final child in action.children) {
-        visit(child);
+        if (child case final AdaptiveAction<T> childAction) {
+          visit(childAction);
+        }
       }
       visiting.remove(action);
     }

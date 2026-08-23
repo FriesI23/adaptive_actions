@@ -6,6 +6,8 @@ import '../../core.dart';
 import '../widgets/action_invocation.dart';
 import '../widgets/animated_action_region.dart';
 
+const _kCupertinoPrimaryDividerWidth = 12.0;
+
 final _cupertinoLabelOptionId = ActionLayoutOptionId('cupertino.label');
 final _cupertinoIconOptionId = ActionLayoutOptionId('cupertino.icon');
 
@@ -511,6 +513,8 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     return _AnimatedCupertinoActionsRegion<T>(
       primaryEntries: result.primary,
       overflowEntries: result.overflow,
+      primaryDividerBeforeActionIds: result.primaryDividerBeforeActionIds,
+      overflowDividerBeforeActionIds: result.overflowDividerBeforeActionIds,
       visuals: visuals,
       onInvoke: onInvoke,
       iconBuilder: iconBuilder,
@@ -559,6 +563,8 @@ final class _AnimatedCupertinoActionsRegion<T extends Object>
   const _AnimatedCupertinoActionsRegion({
     required this.primaryEntries,
     required this.overflowEntries,
+    required this.primaryDividerBeforeActionIds,
+    required this.overflowDividerBeforeActionIds,
     required this.visuals,
     required this.onInvoke,
     required this.iconBuilder,
@@ -577,6 +583,8 @@ final class _AnimatedCupertinoActionsRegion<T extends Object>
 
   final List<ResolvedPrimaryAction<T>> primaryEntries;
   final List<AdaptiveAction<T>> overflowEntries;
+  final List<ActionId> primaryDividerBeforeActionIds;
+  final List<ActionId> overflowDividerBeforeActionIds;
   final Map<ActionId, _CupertinoActionVisual<T>> visuals;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
@@ -597,6 +605,8 @@ final class _AnimatedCupertinoActionsRegion<T extends Object>
     final data = _CupertinoRegionData<T>(
       primaryEntries: primaryEntries,
       overflowEntries: overflowEntries,
+      primaryDividerBeforeActionIds: primaryDividerBeforeActionIds,
+      overflowDividerBeforeActionIds: overflowDividerBeforeActionIds,
       visuals: visuals,
       onInvoke: onInvoke,
       iconBuilder: iconBuilder,
@@ -640,6 +650,8 @@ final class _CupertinoRegionData<T extends Object> {
   const _CupertinoRegionData({
     required this.primaryEntries,
     required this.overflowEntries,
+    required this.primaryDividerBeforeActionIds,
+    required this.overflowDividerBeforeActionIds,
     required this.visuals,
     required this.onInvoke,
     required this.iconBuilder,
@@ -654,6 +666,8 @@ final class _CupertinoRegionData<T extends Object> {
 
   final List<ResolvedPrimaryAction<T>> primaryEntries;
   final List<AdaptiveAction<T>> overflowEntries;
+  final List<ActionId> primaryDividerBeforeActionIds;
+  final List<ActionId> overflowDividerBeforeActionIds;
   final Map<ActionId, _CupertinoActionVisual<T>> visuals;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
@@ -711,8 +725,15 @@ final class _CupertinoPrimarySlot<T extends Object>
 
   final ResolvedPrimaryAction<T> entry;
 
+  bool get showDividerBefore =>
+      data.primaryDividerBeforeActionIds.contains(entry.action.id);
+
+  double get actionWidth =>
+      data.visuals[entry.action.id]!.costFor(entry.optionId);
+
   @override
-  double get width => data.visuals[entry.action.id]!.costFor(entry.optionId);
+  double get width =>
+      actionWidth + (showDividerBefore ? _kCupertinoPrimaryDividerWidth : 0);
 }
 
 final class _CupertinoOverflowSlot<T extends Object>
@@ -751,6 +772,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
       final data = slot.data;
       return _CupertinoOverflowAction<T>(
         entries: data.overflowEntries,
+        dividerBeforeActionIds: data.overflowDividerBeforeActionIds,
         onInvoke: data.onInvoke,
         iconBuilder: data.iconBuilder,
         overflowButtonBuilder: data.overflowButtonBuilder,
@@ -766,7 +788,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
     final entry = primarySlot.entry;
     final action = entry.action;
     final visual = data.visuals[action.id]!;
-    return Semantics(
+    final primaryAction = Semantics(
       label: action.metadata.semanticLabel ?? action.metadata.label,
       tooltip: action.metadata.tooltip,
       button: true,
@@ -776,7 +798,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
           action: action,
           visual: visual,
           optionId: entry.optionId,
-          width: primarySlot.width,
+          width: primarySlot.actionWidth,
           onPressed: action.isEnabled
               ? () => invokeAdaptiveAction(action, data.onInvoke)
               : null,
@@ -794,7 +816,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   action: action,
                   visual: visual,
                   optionId: entry.optionId,
-                  width: primarySlot.width,
+                  width: primarySlot.actionWidth,
                   onPressed: action.isEnabled ? toggle : null,
                   builder: data.actionButtonBuilder,
                   style: data.style,
@@ -811,7 +833,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
               action: action,
               visual: visual,
               optionId: entry.optionId,
-              width: primarySlot.width - data.style.submenuButtonWidth,
+              width: primarySlot.actionWidth - data.style.submenuButtonWidth,
               onPressed: action.isEnabled
                   ? () => invokeAdaptiveAction(action, data.onInvoke)
                   : null,
@@ -852,6 +874,27 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
           ],
         ),
       },
+    );
+    if (!primarySlot.showDividerBefore) return primaryAction;
+    final pixelWidth = 1 / MediaQuery.devicePixelRatioOf(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: _kCupertinoPrimaryDividerWidth,
+          height: data.style.height,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+              child: ColoredBox(
+                color: CupertinoColors.separator.resolveFrom(context),
+                child: SizedBox(width: pixelWidth, height: double.infinity),
+              ),
+            ),
+          ),
+        ),
+        primaryAction,
+      ],
     );
   }
 }
@@ -1132,7 +1175,7 @@ final class _CupertinoActionMenuAnchor<T extends Object>
     this.onMenuClosed,
   });
 
-  final List<AdaptiveAction<T>> entries;
+  final List<AdaptiveMenuEntry<T>> entries;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final _CupertinoMenuTriggerBuilder triggerBuilder;
@@ -1227,14 +1270,15 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
       onOpen: _handleMenuOpened,
       onClose: _handleMenuClosed,
       menuChildren: [
-        for (final action in widget.entries)
-          _CupertinoMenuEntry<T>(
-            action: action,
-            onInvoke: widget.onInvoke,
-            iconBuilder: widget.iconBuilder,
-            closeMenu: _closeMenu,
-            textDirection: textDirection,
-          ),
+        for (final entry in widget.entries)
+          if (_cupertinoMenuEntryIsVisible(entry))
+            _CupertinoMenuEntry<T>(
+              entry: entry,
+              onInvoke: widget.onInvoke,
+              iconBuilder: widget.iconBuilder,
+              closeMenu: _closeMenu,
+              textDirection: textDirection,
+            ),
       ],
       builder: (context, controller, child) => Listener(
         onPointerDown: _handlePointerDown,
@@ -1249,6 +1293,7 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
 final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
   const _CupertinoOverflowAction({
     required this.entries,
+    required this.dividerBeforeActionIds,
     required this.onInvoke,
     required this.iconBuilder,
     required this.overflowButtonBuilder,
@@ -1260,6 +1305,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
   });
 
   final List<AdaptiveAction<T>> entries;
+  final List<ActionId> dividerBeforeActionIds;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
@@ -1271,7 +1317,13 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _CupertinoActionMenuAnchor<T>(
-    entries: entries,
+    entries: [
+      for (final action in entries) ...[
+        if (dividerBeforeActionIds.contains(action.id))
+          AdaptiveMenuDivider<T>(),
+        action,
+      ],
+    ],
     onInvoke: onInvoke,
     iconBuilder: iconBuilder,
     onMenuOpened: onMenuOpened,
@@ -1307,14 +1359,14 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
 
 final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
   const _CupertinoMenuEntry({
-    required this.action,
+    required this.entry,
     required this.onInvoke,
     required this.iconBuilder,
     required this.closeMenu,
     required this.textDirection,
   });
 
-  final AdaptiveAction<T> action;
+  final AdaptiveMenuEntry<T> entry;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final VoidCallback closeMenu;
@@ -1322,6 +1374,13 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final entry = this.entry;
+    if (entry is AdaptiveMenuDivider<T>) {
+      return entry.showInMenu
+          ? const CupertinoMenuDivider()
+          : const SizedBox.shrink();
+    }
+    final action = entry as AdaptiveAction<T>;
     if (action.children.isEmpty || !action.isEnabled) {
       return _CupertinoMenuInvokeItem<T>(
         action: action,
@@ -1342,6 +1401,10 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
     );
   }
 }
+
+bool _cupertinoMenuEntryIsVisible<T extends Object>(
+  AdaptiveMenuEntry<T> entry,
+) => entry is! AdaptiveMenuDivider<T> || entry.showInMenu;
 
 String? _cupertinoMenuSemanticsLabel(ActionMetadata metadata) =>
     metadata.semanticLabel ??
@@ -1439,13 +1502,14 @@ final class _CupertinoSubmenuItemState<T extends Object>
             textDirection: widget.textDirection,
           ),
         for (final child in action.children)
-          _CupertinoMenuEntry<T>(
-            action: child,
-            onInvoke: widget.onInvoke,
-            iconBuilder: widget.iconBuilder,
-            closeMenu: widget.closeMenu,
-            textDirection: widget.textDirection,
-          ),
+          if (_cupertinoMenuEntryIsVisible(child))
+            _CupertinoMenuEntry<T>(
+              entry: child,
+              onInvoke: widget.onInvoke,
+              iconBuilder: widget.iconBuilder,
+              closeMenu: widget.closeMenu,
+              textDirection: widget.textDirection,
+            ),
       ],
       builder: (context, controller, child) => Semantics(
         label: _cupertinoMenuSemanticsLabel(action.metadata),

@@ -197,6 +197,75 @@ void main() {
     );
   });
 
+  testWidgets('divider visibility selection rebuilds the action collection', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const AdaptiveActionsExampleApp());
+    await tester.pumpAndSettle();
+
+    List<AdaptiveMenuDivider<DemoCommand>> dividers() => tester
+        .widget<MaterialAdaptiveActions<DemoCommand>>(
+          find.byType(MaterialAdaptiveActions<DemoCommand>).first,
+        )
+        .actions
+        .entries
+        .whereType<AdaptiveMenuDivider<DemoCommand>>()
+        .toList();
+
+    expect(dividers(), hasLength(3));
+    expect(dividers().every((divider) => !divider.showInPrimary), isTrue);
+    expect(dividers().every((divider) => divider.showInMenu), isTrue);
+
+    final selector = find.byKey(dividerVisibilitySelectorKey);
+    expect(
+      tester.widget<DropdownButton<DemoDividerVisibility>>(selector).items,
+      hasLength(4),
+    );
+
+    tester.widget<DropdownButton<DemoDividerVisibility>>(selector).onChanged!(
+      DemoDividerVisibility.both,
+    );
+    await tester.pumpAndSettle();
+    expect(dividers().every((divider) => divider.showInPrimary), isTrue);
+    expect(dividers().every((divider) => divider.showInMenu), isTrue);
+    expect(
+      find.descendant(
+        of: find.byKey(appBarActionsKey),
+        matching: find.byType(VerticalDivider),
+      ),
+      findsNWidgets(3),
+    );
+    final deleteIcon = find.descendant(
+      of: find.descendant(
+        of: find.byKey(appBarActionsKey),
+        matching: find.byKey(customDeleteButtonKey),
+      ),
+      matching: find.byType(Icon),
+    );
+    expect(tester.getSize(deleteIcon), const Size.square(18));
+
+    tester.widget<DropdownButton<DemoDividerVisibility>>(selector).onChanged!(
+      DemoDividerVisibility.primaryOnly,
+    );
+    await tester.pumpAndSettle();
+    expect(dividers().every((divider) => divider.showInPrimary), isTrue);
+    expect(dividers().every((divider) => !divider.showInMenu), isTrue);
+
+    tester.widget<DropdownButton<DemoDividerVisibility>>(selector).onChanged!(
+      DemoDividerVisibility.hidden,
+    );
+    await tester.pumpAndSettle();
+    expect(dividers().every((divider) => !divider.showInPrimary), isTrue);
+    expect(dividers().every((divider) => !divider.showInMenu), isTrue);
+    expect(
+      find.descendant(
+        of: find.byKey(appBarActionsKey),
+        matching: find.byType(VerticalDivider),
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('custom builders target selected actions and toggle More', (
     tester,
   ) async {

@@ -205,7 +205,7 @@ final class DesktopActionMenu<T extends Object> extends StatelessWidget {
       menuChildren: [
         for (final action in visibleRoots)
           _DesktopMenuEntry<T>(
-            action: action,
+            entry: action,
             onInvoke: onInvoke,
             iconBuilder: iconBuilder,
           ),
@@ -221,17 +221,22 @@ final class DesktopActionMenu<T extends Object> extends StatelessWidget {
 
 final class _DesktopMenuEntry<T extends Object> extends StatelessWidget {
   const _DesktopMenuEntry({
-    required this.action,
+    required this.entry,
     required this.onInvoke,
     required this.iconBuilder,
   });
 
-  final AdaptiveAction<T> action;
+  final AdaptiveMenuEntry<T> entry;
   final ValueChanged<T> onInvoke;
   final DemoActionIconBuilder<T> iconBuilder;
 
   @override
   Widget build(BuildContext context) {
+    final entry = this.entry;
+    if (entry is AdaptiveMenuDivider<T>) {
+      return const PopupMenuDivider();
+    }
+    final action = entry as AdaptiveAction<T>;
     if (action.children.isEmpty || !action.isEnabled) {
       return _DesktopInvokeItem<T>(
         action: action,
@@ -250,7 +255,7 @@ final class _DesktopMenuEntry<T extends Object> extends StatelessWidget {
           ),
         for (final child in action.children)
           _DesktopMenuEntry<T>(
-            action: child,
+            entry: child,
             onInvoke: onInvoke,
             iconBuilder: iconBuilder,
           ),

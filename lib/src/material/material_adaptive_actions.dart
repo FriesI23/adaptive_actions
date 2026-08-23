@@ -4,6 +4,8 @@ import '../../core.dart';
 import '../widgets/action_invocation.dart';
 import '../widgets/animated_action_region.dart';
 
+const _kMaterialPrimaryDividerWidth = 16.0;
+
 const _kCompactIconButtonStyle = ButtonStyle(
   padding: WidgetStatePropertyAll(EdgeInsets.zero),
   minimumSize: WidgetStatePropertyAll(Size.zero),
@@ -477,6 +479,8 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     return _AnimatedMaterialActionsRegion<T>(
       primaryEntries: result.primary,
       overflowEntries: result.overflow,
+      primaryDividerBeforeActionIds: result.primaryDividerBeforeActionIds,
+      overflowDividerBeforeActionIds: result.overflowDividerBeforeActionIds,
       visuals: visuals,
       onInvoke: onInvoke,
       iconBuilder: iconBuilder,
@@ -523,6 +527,8 @@ final class _AnimatedMaterialActionsRegion<T extends Object>
   const _AnimatedMaterialActionsRegion({
     required this.primaryEntries,
     required this.overflowEntries,
+    required this.primaryDividerBeforeActionIds,
+    required this.overflowDividerBeforeActionIds,
     required this.visuals,
     required this.onInvoke,
     required this.iconBuilder,
@@ -540,6 +546,8 @@ final class _AnimatedMaterialActionsRegion<T extends Object>
 
   final List<ResolvedPrimaryAction<T>> primaryEntries;
   final List<AdaptiveAction<T>> overflowEntries;
+  final List<ActionId> primaryDividerBeforeActionIds;
+  final List<ActionId> overflowDividerBeforeActionIds;
   final Map<ActionId, _MaterialActionVisual<T>> visuals;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
@@ -613,6 +621,8 @@ final class _MaterialRegionData<T extends Object> {
   const _MaterialRegionData({
     required this.primaryEntries,
     required this.overflowEntries,
+    required this.primaryDividerBeforeActionIds,
+    required this.overflowDividerBeforeActionIds,
     required this.visuals,
     required this.onInvoke,
     required this.iconBuilder,
@@ -629,6 +639,8 @@ final class _MaterialRegionData<T extends Object> {
   ) => _MaterialRegionData<T>(
     primaryEntries: widget.primaryEntries,
     overflowEntries: widget.overflowEntries,
+    primaryDividerBeforeActionIds: widget.primaryDividerBeforeActionIds,
+    overflowDividerBeforeActionIds: widget.overflowDividerBeforeActionIds,
     visuals: widget.visuals,
     onInvoke: widget.onInvoke,
     iconBuilder: widget.iconBuilder,
@@ -642,6 +654,8 @@ final class _MaterialRegionData<T extends Object> {
 
   final List<ResolvedPrimaryAction<T>> primaryEntries;
   final List<AdaptiveAction<T>> overflowEntries;
+  final List<ActionId> primaryDividerBeforeActionIds;
+  final List<ActionId> overflowDividerBeforeActionIds;
   final Map<ActionId, _MaterialActionVisual<T>> visuals;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
@@ -704,8 +718,13 @@ final class _MaterialPrimarySlot<T extends Object>
 
   final ResolvedPrimaryAction<T> entry;
 
+  bool get showDividerBefore =>
+      data.primaryDividerBeforeActionIds.contains(entry.action.id);
+
   @override
-  double get width => data.visuals[entry.action.id]!.costFor(entry.optionId);
+  double get width =>
+      data.visuals[entry.action.id]!.costFor(entry.optionId) +
+      (showDividerBefore ? _kMaterialPrimaryDividerWidth : 0);
 }
 
 final class _MaterialOverflowSlot<T extends Object>
@@ -733,7 +752,7 @@ final class _MaterialRegionSlotView<T extends Object> extends StatelessWidget {
     if (slot is _MaterialPrimarySlot<T>) {
       final data = slot.data;
       final entry = slot.entry;
-      return _MaterialPrimaryAction<T>(
+      final action = _MaterialPrimaryAction<T>(
         entry: entry,
         visual: data.visuals[entry.action.id]!,
         onInvoke: data.onInvoke,
@@ -743,11 +762,27 @@ final class _MaterialRegionSlotView<T extends Object> extends StatelessWidget {
         menuAnimationEnabled: data.menuAnimationEnabled,
         optionTransition: optionTransition,
       );
+      if (!slot.showDividerBefore) return action;
+      final dividerTheme = DividerTheme.of(context);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          VerticalDivider(
+            width: _kMaterialPrimaryDividerWidth,
+            thickness: dividerTheme.thickness ?? 1,
+            indent: 8,
+            endIndent: 8,
+            color: dividerTheme.color,
+          ),
+          action,
+        ],
+      );
     }
     final overflow = slot as _MaterialOverflowSlot<T>;
     final data = overflow.data;
     return _MaterialOverflowAction<T>(
       entries: data.overflowEntries,
+      dividerBeforeActionIds: data.overflowDividerBeforeActionIds,
       onInvoke: data.onInvoke,
       iconBuilder: data.iconBuilder,
       overflowButtonBuilder: data.overflowButtonBuilder,
@@ -900,12 +935,13 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
     animated: menuAnimationEnabled,
     menuChildren: [
       for (final child in action.children)
-        _MaterialMenuEntry<T>(
-          action: child,
-          onInvoke: onInvoke,
-          iconBuilder: iconBuilder,
-          menuAnimationEnabled: menuAnimationEnabled,
-        ),
+        if (_materialMenuEntryIsVisible(child))
+          _MaterialMenuEntry<T>(
+            entry: child,
+            onInvoke: onInvoke,
+            iconBuilder: iconBuilder,
+            menuAnimationEnabled: menuAnimationEnabled,
+          ),
     ],
     builder: (context, controller, child) =>
         _CustomizableMaterialActionButton<T>(
@@ -960,12 +996,13 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
         animated: menuAnimationEnabled,
         menuChildren: [
           for (final child in action.children)
-            _MaterialMenuEntry<T>(
-              action: child,
-              onInvoke: onInvoke,
-              iconBuilder: iconBuilder,
-              menuAnimationEnabled: menuAnimationEnabled,
-            ),
+            if (_materialMenuEntryIsVisible(child))
+              _MaterialMenuEntry<T>(
+                entry: child,
+                onInvoke: onInvoke,
+                iconBuilder: iconBuilder,
+                menuAnimationEnabled: menuAnimationEnabled,
+              ),
         ],
         builder: (context, controller, child) => Tooltip(
           message:
@@ -991,6 +1028,7 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
 final class _MaterialOverflowAction<T extends Object> extends StatefulWidget {
   const _MaterialOverflowAction({
     required this.entries,
+    required this.dividerBeforeActionIds,
     required this.onInvoke,
     required this.iconBuilder,
     required this.overflowButtonBuilder,
@@ -1001,6 +1039,7 @@ final class _MaterialOverflowAction<T extends Object> extends StatefulWidget {
   });
 
   final List<AdaptiveAction<T>> entries;
+  final List<ActionId> dividerBeforeActionIds;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
@@ -1029,13 +1068,16 @@ final class _MaterialOverflowActionState<T extends Object>
     animated: widget.menuAnimationEnabled,
     childFocusNode: _focusNode,
     menuChildren: [
-      for (final action in widget.entries)
+      for (final action in widget.entries) ...[
+        if (widget.dividerBeforeActionIds.contains(action.id))
+          const PopupMenuDivider(),
         _MaterialMenuEntry<T>(
-          action: action,
+          entry: action,
           onInvoke: widget.onInvoke,
           iconBuilder: widget.iconBuilder,
           menuAnimationEnabled: widget.menuAnimationEnabled,
         ),
+      ],
     ],
     builder: (context, controller, child) {
       final onPressed = controller.isOpen ? controller.close : controller.open;
@@ -1060,19 +1102,26 @@ final class _MaterialOverflowActionState<T extends Object>
 
 final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
   const _MaterialMenuEntry({
-    required this.action,
+    required this.entry,
     required this.onInvoke,
     required this.iconBuilder,
     required this.menuAnimationEnabled,
   });
 
-  final AdaptiveAction<T> action;
+  final AdaptiveMenuEntry<T> entry;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final bool menuAnimationEnabled;
 
   @override
   Widget build(BuildContext context) {
+    final entry = this.entry;
+    if (entry is AdaptiveMenuDivider<T>) {
+      return entry.showInMenu
+          ? const PopupMenuDivider()
+          : const SizedBox.shrink();
+    }
+    final action = entry as AdaptiveAction<T>;
     if (action.children.isEmpty || !action.isEnabled) {
       return _MaterialMenuInvokeItem<T>(
         action: action,
@@ -1090,6 +1139,10 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
     );
   }
 }
+
+bool _materialMenuEntryIsVisible<T extends Object>(
+  AdaptiveMenuEntry<T> entry,
+) => entry is! AdaptiveMenuDivider<T> || entry.showInMenu;
 
 String? _materialMenuSemanticsLabel(ActionMetadata metadata) =>
     metadata.semanticLabel ??
@@ -1203,12 +1256,13 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
                 iconBuilder: iconBuilder,
               ),
             for (final child in action.children)
-              _MaterialMenuEntry<T>(
-                action: child,
-                onInvoke: onInvoke,
-                iconBuilder: iconBuilder,
-                menuAnimationEnabled: menuAnimationEnabled,
-              ),
+              if (_materialMenuEntryIsVisible(child))
+                _MaterialMenuEntry<T>(
+                  entry: child,
+                  onInvoke: onInvoke,
+                  iconBuilder: iconBuilder,
+                  menuAnimationEnabled: menuAnimationEnabled,
+                ),
           ],
           child: _MaterialMenuLabel(action: action),
         ),

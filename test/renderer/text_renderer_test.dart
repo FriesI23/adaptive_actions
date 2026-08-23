@@ -62,7 +62,7 @@ void main() {
     final tools = AdaptiveAction<String>.menu(
       id: ActionId('tools'),
       metadata: const ActionMetadata(label: 'tools'),
-      children: [open, settings],
+      children: [open, const AdaptiveMenuDivider<String>(), settings],
       placementPolicy: ActionPlacementPolicy(
         placement: ActionPlacement.overflowOnly,
       ),
@@ -73,7 +73,16 @@ void main() {
     );
     const capabilities = RendererCapabilities();
     final request = ActionLayoutRequest(
-      actions: ActionCollection(roots: [save, search, tools, share, secret]),
+      actions: ActionCollection.withEntries(
+        entries: [
+          save,
+          const AdaptiveMenuDivider<String>(),
+          search,
+          tools,
+          share,
+          secret,
+        ],
+      ),
       constraints: ActionLayoutConstraints(
         primaryCapacity: 20,
         profiles: [textCost(save), textCost(search), textCost(share)],
@@ -99,11 +108,13 @@ void main() {
     );
     expect(output, [
       'primary:text:search [invoke]',
+      'primary-divider',
       'primary:text:save [invoke]',
       'overflow:share [invoke]',
       'overflow:tools [menu]',
       '  child:open [invoke,submenu]',
       '    child:recent [invoke]',
+      '  divider',
       '  child:settings [menu]',
       '    child:advanced [menu]',
       '      child:reset [invoke]',
@@ -196,6 +207,9 @@ final class _TextRenderer<T extends Object> {
   List<String> render(ActionLayoutResult<T> layout) {
     final lines = <String>[];
     for (final entry in layout.primary) {
+      if (layout.primaryDividerBeforeActionIds.contains(entry.action.id)) {
+        lines.add('primary-divider');
+      }
       final builder = primaryBuilders[entry.optionId];
       if (builder == null) {
         throw StateError(
@@ -209,6 +223,9 @@ final class _TextRenderer<T extends Object> {
       _renderChildren(lines, entry.action.children, depth: 1);
     }
     for (final action in layout.overflow) {
+      if (layout.overflowDividerBeforeActionIds.contains(action.id)) {
+        lines.add('overflow-divider');
+      }
       lines.add('overflow:${action.id} [${_affordances(action)}]');
       _renderChildren(lines, action.children, depth: 1);
     }
@@ -236,12 +253,17 @@ final class _TextRenderer<T extends Object> {
 
   void _renderChildren(
     List<String> lines,
-    List<AdaptiveAction<T>> children, {
+    List<AdaptiveMenuEntry<T>> children, {
     required int depth,
   }) {
     for (final child in children) {
-      lines.add('${'  ' * depth}child:${child.id} [${_affordances(child)}]');
-      _renderChildren(lines, child.children, depth: depth + 1);
+      if (child is AdaptiveMenuDivider<T>) {
+        lines.add('${'  ' * depth}divider');
+        continue;
+      }
+      final action = child as AdaptiveAction<T>;
+      lines.add('${'  ' * depth}child:${action.id} [${_affordances(action)}]');
+      _renderChildren(lines, action.children, depth: depth + 1);
     }
   }
 

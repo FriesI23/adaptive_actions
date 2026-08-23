@@ -123,6 +123,7 @@ final class _AdaptiveActionsDemoPageState
   late DemoRenderer _renderer;
   DemoPlacement _placement = DemoPlacement.automatic;
   DemoRetention _retention = DemoRetention.normal;
+  DemoDividerVisibility _dividerVisibility = DemoDividerVisibility.menuOnly;
   final _presentations = DemoPresentationValues();
   double? _simulatedMaxActionWidth = defaultSimulatedMaxActionWidth;
   double _parentActionHeight = defaultParentActionHeight;
@@ -164,7 +165,9 @@ final class _AdaptiveActionsDemoPageState
     final effectiveActionWidth = simulatedMaxActionWidth == null
         ? availableActionWidth
         : math.min(availableActionWidth, simulatedMaxActionWidth);
-    final actions = ActionCollection<DemoCommand>(roots: _buildActions());
+    final actions = ActionCollection<DemoCommand>.withEntries(
+      entries: _buildActionEntries(),
+    );
     final showDesktopMenu = isDesktopTarget(defaultTargetPlatform);
     final body = _buildDemoBody(
       context,
@@ -258,6 +261,7 @@ final class _AdaptiveActionsDemoPageState
             showAppBarActionFrame: _showAppBarActionFrame,
             placement: _placement,
             retention: _retention,
+            dividerVisibility: _dividerVisibility,
             onSimulatedMaxActionWidthChanged: (width) =>
                 setState(() => _simulatedMaxActionWidth = width),
             onParentActionHeightChanged: (height) =>
@@ -271,6 +275,8 @@ final class _AdaptiveActionsDemoPageState
                 setState(() => _placement = placement),
             onRetentionChanged: (retention) =>
                 setState(() => _retention = retention),
+            onDividerVisibilityChanged: (visibility) =>
+                setState(() => _dividerVisibility = visibility),
           ),
         ),
         DemoSection(
@@ -440,7 +446,7 @@ final class _AdaptiveActionsDemoPageState
     ),
   };
 
-  List<AdaptiveAction<DemoCommand>> _buildActions() {
+  List<AdaptiveMenuEntry<DemoCommand>> _buildActionEntries() {
     final savePolicy = switch (_placement) {
       DemoPlacement.automatic => ActionPlacementPolicy(
         automaticPreference: AutomaticPlacementPreference(
@@ -476,6 +482,10 @@ final class _AdaptiveActionsDemoPageState
         isEnabled: _enabled,
         placementPolicy: savePolicy,
       ),
+      AdaptiveMenuDivider<DemoCommand>(
+        showInPrimary: _dividerVisibility.showInPrimary,
+        showInMenu: _dividerVisibility.showInMenu,
+      ),
       AdaptiveAction.composite(
         id: ActionId('open'),
         metadata: const ActionMetadata(label: 'Open', iconKey: 'open'),
@@ -492,6 +502,7 @@ final class _AdaptiveActionsDemoPageState
             payload: DemoCommand.recentDocument,
             isEnabled: _enabled,
           ),
+          const AdaptiveMenuDivider<DemoCommand>(),
           AdaptiveAction.action(
             id: ActionId('browse'),
             metadata: const ActionMetadata(
@@ -502,6 +513,10 @@ final class _AdaptiveActionsDemoPageState
             isEnabled: _enabled,
           ),
         ],
+      ),
+      AdaptiveMenuDivider<DemoCommand>(
+        showInPrimary: _dividerVisibility.showInPrimary,
+        showInMenu: _dividerVisibility.showInMenu,
       ),
       AdaptiveAction.menu(
         id: ActionId('share'),
@@ -527,6 +542,10 @@ final class _AdaptiveActionsDemoPageState
             isEnabled: _enabled,
           ),
         ],
+      ),
+      AdaptiveMenuDivider<DemoCommand>(
+        showInPrimary: _dividerVisibility.showInPrimary,
+        showInMenu: _dividerVisibility.showInMenu,
       ),
       AdaptiveAction.action(
         id: ActionId('delete'),
@@ -689,6 +708,7 @@ Widget _materialActionButtonBuilder(
     child: IconButton(
       tooltip: action.metadata.tooltip ?? action.metadata.label,
       color: Theme.of(context).colorScheme.error,
+      iconSize: const MaterialAdaptiveActionsStyle().iconSize,
       onPressed: onPressed,
       icon: const Icon(Icons.delete_forever_outlined),
     ),

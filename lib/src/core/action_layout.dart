@@ -352,17 +352,26 @@ final class ActionPlacementResult<T extends Object> {
 ///
 /// A renderer must preserve [primary] and [overflow] order, use each primary
 /// entry's selected layout option ID, keep every action subtree intact, and
-/// leave [hidden] unavailable to users. Rendering and payload dispatch remain
-/// outside core.
+/// leave [hidden] unavailable to users. Divider boundary lists identify the
+/// actions that should receive a leading separator in each visible region.
+/// Rendering and payload dispatch remain outside core.
 final class ActionLayoutResult<T extends Object> {
   /// Creates an immutable renderer-ready layout.
   ActionLayoutResult({
     Iterable<ResolvedPrimaryAction<T>> primary = const [],
     Iterable<AdaptiveAction<T>> overflow = const [],
+    Iterable<ActionId> primaryDividerBeforeActionIds = const [],
+    Iterable<ActionId> overflowDividerBeforeActionIds = const [],
     Iterable<HiddenAction<T>> hidden = const [],
     Iterable<ResolutionDiagnostic> diagnostics = const [],
   }) : primary = List.unmodifiable(primary),
        overflow = List.unmodifiable(overflow),
+       primaryDividerBeforeActionIds = List.unmodifiable(
+         primaryDividerBeforeActionIds,
+       ),
+       overflowDividerBeforeActionIds = List.unmodifiable(
+         overflowDividerBeforeActionIds,
+       ),
        hidden = List.unmodifiable(hidden),
        diagnostics = List.unmodifiable(diagnostics);
 
@@ -371,6 +380,14 @@ final class ActionLayoutResult<T extends Object> {
 
   /// Overflow roots in final display order.
   final List<AdaptiveAction<T>> overflow;
+
+  /// Primary action IDs that have a visible divider immediately before them.
+  ///
+  /// Divider boundaries do not consume placement capacity or become actions.
+  final List<ActionId> primaryDividerBeforeActionIds;
+
+  /// Overflow action IDs that have a visible menu divider before them.
+  final List<ActionId> overflowDividerBeforeActionIds;
 
   /// Roots unavailable to the user.
   final List<HiddenAction<T>> hidden;
@@ -384,6 +401,14 @@ final class ActionLayoutResult<T extends Object> {
       other is ActionLayoutResult<T> &&
           const ListEquality<Object?>().equals(primary, other.primary) &&
           const ListEquality<Object?>().equals(overflow, other.overflow) &&
+          const ListEquality<ActionId>().equals(
+            primaryDividerBeforeActionIds,
+            other.primaryDividerBeforeActionIds,
+          ) &&
+          const ListEquality<ActionId>().equals(
+            overflowDividerBeforeActionIds,
+            other.overflowDividerBeforeActionIds,
+          ) &&
           const ListEquality<Object?>().equals(hidden, other.hidden) &&
           const ListEquality<Object?>().equals(diagnostics, other.diagnostics);
 
@@ -391,6 +416,8 @@ final class ActionLayoutResult<T extends Object> {
   int get hashCode => Object.hash(
     const ListEquality<Object?>().hash(primary),
     const ListEquality<Object?>().hash(overflow),
+    const ListEquality<ActionId>().hash(primaryDividerBeforeActionIds),
+    const ListEquality<ActionId>().hash(overflowDividerBeforeActionIds),
     const ListEquality<Object?>().hash(hidden),
     const ListEquality<Object?>().hash(diagnostics),
   );
@@ -398,5 +425,7 @@ final class ActionLayoutResult<T extends Object> {
   @override
   String toString() =>
       'ActionLayoutResult(primary: $primary, overflow: $overflow, '
+      'primaryDividerBeforeActionIds: $primaryDividerBeforeActionIds, '
+      'overflowDividerBeforeActionIds: $overflowDividerBeforeActionIds, '
       'hidden: $hidden, diagnostics: $diagnostics)';
 }

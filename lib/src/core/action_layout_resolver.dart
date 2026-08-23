@@ -24,21 +24,109 @@ final class ActionLayoutResolver {
     ActionLayoutRequest<T> request,
   ) {
     final placement = placementDelegate.resolve(request);
+    final primary = _applySlotPreservingOrderOverride<ResolvedPrimaryAction<T>>(
+      entries: placement.primary,
+      orderOverride: request.primaryOrderOverride,
+      actionIdOf: (entry) => entry.action.id,
+    );
+    final overflow = _applySlotPreservingOrderOverride<AdaptiveAction<T>>(
+      entries: placement.overflow,
+      orderOverride: request.overflowOrderOverride,
+      actionIdOf: (action) => action.id,
+    );
 
     return ActionLayoutResult(
-      primary: _applySlotPreservingOrderOverride<ResolvedPrimaryAction<T>>(
-        entries: placement.primary,
-        orderOverride: request.primaryOrderOverride,
-        actionIdOf: (entry) => entry.action.id,
+      primary: primary,
+      overflow: overflow,
+      primaryDividerBeforeActionIds: _dividerBoundaries(
+        declarations: request.actions.entries,
+        orderedActionIds: primary.map((entry) => entry.action.id),
+        menu: false,
       ),
-      overflow: _applySlotPreservingOrderOverride<AdaptiveAction<T>>(
-        entries: placement.overflow,
-        orderOverride: request.overflowOrderOverride,
-        actionIdOf: (action) => action.id,
+      overflowDividerBeforeActionIds: _dividerBoundaries(
+        declarations: request.actions.entries,
+        orderedActionIds: overflow.map((action) => action.id),
+        menu: true,
       ),
       hidden: placement.hidden,
       diagnostics: placement.diagnostics,
     );
+  }
+
+  List<ActionId> _dividerBoundaries<T extends Object>({
+    required List<AdaptiveMenuEntry<T>> declarations,
+    required Iterable<ActionId> orderedActionIds,
+    required bool menu,
+  }) {
+    final groupByActionId = <ActionId, int>{};
+    final boundaries =
+        <
+          ({
+            AdaptiveMenuDivider<T> divider,
+            ActionId? previousActionId,
+            ActionId? nextActionId,
+          })
+        >[];
+    final pendingBoundaryIndexes = <int>[];
+    ActionId? previousActionId;
+    var group = 0;
+    for (final declaration in declarations) {
+      switch (declaration) {
+        case final AdaptiveAction<T> action:
+          groupByActionId[action.id] = group;
+          for (final index in pendingBoundaryIndexes) {
+            final boundary = boundaries[index];
+            boundaries[index] = (
+              divider: boundary.divider,
+              previousActionId: boundary.previousActionId,
+              nextActionId: action.id,
+            );
+          }
+          pendingBoundaryIndexes.clear();
+          previousActionId = action.id;
+        case final AdaptiveMenuDivider<T> divider:
+          boundaries.add((
+            divider: divider,
+            previousActionId: previousActionId,
+            nextActionId: null,
+          ));
+          pendingBoundaryIndexes.add(boundaries.length - 1);
+          group += 1;
+      }
+    }
+
+    final actionIds = orderedActionIds.toList(growable: false);
+    final visibleActionIds = actionIds.toSet();
+    final result = <ActionId>[];
+    for (var index = 1; index < actionIds.length; index += 1) {
+      final previousGroup = groupByActionId[actionIds[index - 1]];
+      final currentGroup = groupByActionId[actionIds[index]];
+      if (previousGroup == null ||
+          currentGroup == null ||
+          previousGroup == currentGroup) {
+        continue;
+      }
+      final firstBoundary = previousGroup < currentGroup
+          ? previousGroup
+          : currentGroup;
+      final lastBoundary = previousGroup < currentGroup
+          ? currentGroup
+          : previousGroup;
+      final hasVisibleDivider = boundaries
+          .getRange(firstBoundary, lastBoundary)
+          .any(
+            (boundary) =>
+                boundary.previousActionId != null &&
+                boundary.nextActionId != null &&
+                visibleActionIds.contains(boundary.previousActionId) &&
+                visibleActionIds.contains(boundary.nextActionId) &&
+                (menu
+                    ? boundary.divider.showInMenu
+                    : boundary.divider.showInPrimary),
+          );
+      if (hasVisibleDivider) result.add(actionIds[index]);
+    }
+    return List.unmodifiable(result);
   }
 }
 

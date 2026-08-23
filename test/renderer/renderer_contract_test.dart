@@ -60,10 +60,11 @@ void main() {
       final invoked = <String>[];
       final first = leaf('first');
       final second = leaf('second');
+      const divider = AdaptiveMenuDivider<String>();
       final menu = AdaptiveAction<String>.menu(
         id: ActionId('more'),
         metadata: const ActionMetadata(label: 'more'),
-        children: [first, second],
+        children: [first, divider, second],
       );
       final renderer = _InteractionProbe<String>(
         capabilities: const RendererCapabilities(),
@@ -71,7 +72,7 @@ void main() {
       );
 
       expect(renderer.affordancesFor(menu), ['menu:more']);
-      expect(renderer.open(menu), [first, second]);
+      expect(renderer.open(menu), [first, divider, second]);
       expect(invoked, isEmpty);
     });
 
@@ -144,6 +145,6 @@ final class _InteractionProbe<T extends Object> {
     }
   }
 
-  List<AdaptiveAction<T>> open(AdaptiveAction<T> action) =>
+  List<AdaptiveMenuEntry<T>> open(AdaptiveAction<T> action) =>
       action.isEnabled ? action.children : const [];
 }

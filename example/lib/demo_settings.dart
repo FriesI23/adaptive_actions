@@ -20,6 +20,7 @@ const customOpenButtonKey = ValueKey('custom-open-button');
 const customDeleteButtonKey = ValueKey('custom-delete-button');
 const placementSelectorKey = ValueKey('placement-selector');
 const retentionSelectorKey = ValueKey('retention-selector');
+const dividerVisibilitySelectorKey = ValueKey('divider-visibility-selector');
 const materialPresentationSelectorKey = ValueKey(
   'material-presentation-selector',
 );
@@ -89,6 +90,27 @@ extension DemoRetentionValue on DemoRetention {
     DemoRetention.low => PrimaryRetentionPriority.low,
     DemoRetention.normal => PrimaryRetentionPriority.normal,
     DemoRetention.high => PrimaryRetentionPriority.high,
+  };
+}
+
+enum DemoDividerVisibility { both, menuOnly, primaryOnly, hidden }
+
+extension DemoDividerVisibilityValue on DemoDividerVisibility {
+  String get label => switch (this) {
+    DemoDividerVisibility.both => 'Both (true / true)',
+    DemoDividerVisibility.menuOnly => 'Menu only (false / true)',
+    DemoDividerVisibility.primaryOnly => 'Primary only (true / false)',
+    DemoDividerVisibility.hidden => 'Hidden (false / false)',
+  };
+
+  bool get showInPrimary => switch (this) {
+    DemoDividerVisibility.both || DemoDividerVisibility.primaryOnly => true,
+    DemoDividerVisibility.menuOnly || DemoDividerVisibility.hidden => false,
+  };
+
+  bool get showInMenu => switch (this) {
+    DemoDividerVisibility.both || DemoDividerVisibility.menuOnly => true,
+    DemoDividerVisibility.primaryOnly || DemoDividerVisibility.hidden => false,
   };
 }
 

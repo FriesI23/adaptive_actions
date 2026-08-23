@@ -78,6 +78,7 @@ final class DemoActionSettings extends StatelessWidget {
     required this.showAppBarActionFrame,
     required this.placement,
     required this.retention,
+    required this.dividerVisibility,
     required this.onSimulatedMaxActionWidthChanged,
     required this.onParentActionHeightChanged,
     required this.onMaxPrimaryActionsChanged,
@@ -85,6 +86,7 @@ final class DemoActionSettings extends StatelessWidget {
     required this.onShowAppBarActionFrameChanged,
     required this.onPlacementChanged,
     required this.onRetentionChanged,
+    required this.onDividerVisibilityChanged,
   }) : assert(actionCount >= 0);
 
   final DemoRenderer renderer;
@@ -96,6 +98,7 @@ final class DemoActionSettings extends StatelessWidget {
   final bool showAppBarActionFrame;
   final DemoPlacement placement;
   final DemoRetention retention;
+  final DemoDividerVisibility dividerVisibility;
   final ValueChanged<double?> onSimulatedMaxActionWidthChanged;
   final ValueChanged<double> onParentActionHeightChanged;
   final ValueChanged<int?> onMaxPrimaryActionsChanged;
@@ -103,6 +106,7 @@ final class DemoActionSettings extends StatelessWidget {
   final ValueChanged<bool> onShowAppBarActionFrameChanged;
   final ValueChanged<DemoPlacement> onPlacementChanged;
   final ValueChanged<DemoRetention> onRetentionChanged;
+  final ValueChanged<DemoDividerVisibility> onDividerVisibilityChanged;
 
   @override
   Widget build(BuildContext context) => switch (renderer) {
@@ -163,6 +167,21 @@ final class DemoActionSettings extends StatelessWidget {
           title: const Text('Actions enabled'),
           value: enabled,
           onChanged: onEnabledChanged,
+        ),
+        const Text('Top-level divider visibility'),
+        DropdownButton<DemoDividerVisibility>(
+          key: dividerVisibilitySelectorKey,
+          value: dividerVisibility,
+          isExpanded: true,
+          items: [
+            for (final value in DemoDividerVisibility.values)
+              DropdownMenuItem(value: value, child: Text(value.label)),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              onDividerVisibilityChanged(value);
+            }
+          },
         ),
         const Text('Save placement'),
         DropdownButton<DemoPlacement>(
@@ -243,6 +262,18 @@ final class DemoActionSettings extends StatelessWidget {
           title: 'Actions enabled',
           value: enabled,
           onChanged: onEnabledChanged,
+        ),
+        _CupertinoSelectionField<DemoDividerVisibility>(
+          key: dividerVisibilitySelectorKey,
+          title: 'Top-level divider visibility',
+          value: dividerVisibility,
+          options: DemoDividerVisibility.values,
+          labelOf: (value) => value.label,
+          onChanged: (value) {
+            if (value != null) {
+              onDividerVisibilityChanged(value);
+            }
+          },
         ),
         _CupertinoSelectionField<DemoPlacement>(
           key: placementSelectorKey,

@@ -295,6 +295,8 @@ void main() {
       final layout = ActionLayoutResult(
         primary: [primaryEntry],
         overflow: [overflow],
+        primaryDividerBeforeActionIds: [menu.id],
+        overflowDividerBeforeActionIds: [overflow.id],
         hidden: [hiddenEntry],
         diagnostics: [diagnostic],
       );
@@ -307,12 +309,22 @@ void main() {
         ActionLayoutResult(
           primary: [primaryEntry],
           overflow: [overflow],
+          primaryDividerBeforeActionIds: [menu.id],
+          overflowDividerBeforeActionIds: [overflow.id],
           hidden: [hiddenEntry],
           diagnostics: [diagnostic],
         ),
       );
       expect(layout.primary.clear, throwsUnsupportedError);
       expect(layout.overflow.clear, throwsUnsupportedError);
+      expect(
+        layout.primaryDividerBeforeActionIds.clear,
+        throwsUnsupportedError,
+      );
+      expect(
+        layout.overflowDividerBeforeActionIds.clear,
+        throwsUnsupportedError,
+      );
       expect(layout.hidden.clear, throwsUnsupportedError);
       expect(layout.diagnostics.clear, throwsUnsupportedError);
     });

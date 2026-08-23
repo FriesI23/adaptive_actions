@@ -26,6 +26,7 @@ Cupertino UI.
   priorities and independent display-order overrides.
 - Leaf, menu, and composite actions with enabled, destructive, tooltip, and
   semantic-label metadata.
+- Menu dividers rendered with the native Material and Cupertino components.
 - Custom primary-action and overflow-trigger builders without replacing menu
   ownership or layout resolution.
 - Animated layout changes, anchored menus, and LTR/RTL-aware affordances.
@@ -197,6 +198,45 @@ The layout places root actions. When a menu or composite action moves into
 overflow, all of its children move with it and keep their declared order. A
 disabled branch cannot be invoked or opened.
 
+Use `AdaptiveMenuDivider` between child actions to separate menu groups. It is
+rendered as `PopupMenuDivider` on Material and `CupertinoMenuDivider` on
+Cupertino. Both display targets are enabled by default and can be configured
+independently:
+
+```dart
+AdaptiveAction<DocumentCommand>.menu(
+  id: ActionId('share'),
+  metadata: const ActionMetadata(label: 'Share'),
+  children: [
+    shareLink,
+    const AdaptiveMenuDivider<DocumentCommand>(showInPrimary: false),
+    deleteShare,
+  ],
+)
+```
+
+Use `ActionCollection.withEntries` when the divider is between top-level
+actions:
+
+```dart
+final documentActions = ActionCollection<DocumentCommand>.withEntries(
+  entries: [
+    save,
+    const AdaptiveMenuDivider<DocumentCommand>(
+      showInPrimary: false,
+      showInMenu: true,
+    ),
+    delete,
+  ],
+);
+```
+
+`showInPrimary` controls the vertical separator between directly rendered
+actions. `showInMenu` controls dividers in action and overflow menus. When both
+are `false`, the divider remains declared but is not rendered. Dividers never
+participate in action placement, and a boundary is omitted when either side has
+no adjacent declared action in that region.
+
 ### Display order overrides
 
 Use `primaryOrderOverride` and `overflowOrderOverride` when display order needs
@@ -287,6 +327,8 @@ A custom renderer imports `package:adaptive_actions/core.dart`, provides
 `ActionLayoutRequest`, and renders the returned `ActionLayoutResult` in order.
 It does not need a shared UI base class or Core changes. The final result owns
 placement and display order; renderers only translate that result into UI.
+Custom renderers can use `primaryDividerBeforeActionIds` and
+`overflowDividerBeforeActionIds` to render resolved top-level group boundaries.
 
 </details>
 

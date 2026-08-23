@@ -21,6 +21,7 @@
 - 支持 `pinned`、`automatic`、`overflowOnly` 和 `hidden` 放置方式，以及保留
   优先级和各区域独立的显示顺序覆盖。
 - 支持普通操作、菜单和复合操作，以及可用状态、危险操作、tooltip 和语义标签。
+- 菜单分隔符会使用 Material 与 Cupertino 各自的原生组件渲染。
 - 可以只替换直接显示的操作按钮或更多菜单入口，不接管菜单和布局逻辑。
 - 支持布局变化动画、锚定菜单和 LTR/RTL 自适应 affordance。
 - 提供平台无关的 resolver 与 renderer 扩展点，可接入自定义 UI。
@@ -188,6 +189,42 @@ fvm flutter run
 布局以顶层操作为单位。菜单或复合操作进入更多菜单时，它的子操作会一起移动，并
 保留声明顺序。禁用的分支不能调用，也不能打开。
 
+在子操作之间加入 `AdaptiveMenuDivider` 可以划分菜单分组。Material 会将其渲染为
+`PopupMenuDivider`，Cupertino 会将其渲染为 `CupertinoMenuDivider`。默认会在两个
+目标位置显示，也可以分别配置：
+
+```dart
+AdaptiveAction<DocumentCommand>.menu(
+  id: ActionId('share'),
+  metadata: const ActionMetadata(label: 'Share'),
+  children: [
+    shareLink,
+    const AdaptiveMenuDivider<DocumentCommand>(showInPrimary: false),
+    deleteShare,
+  ],
+)
+```
+
+需要在顶级操作之间声明 divider 时，使用 `ActionCollection.withEntries`：
+
+```dart
+final documentActions = ActionCollection<DocumentCommand>.withEntries(
+  entries: [
+    save,
+    const AdaptiveMenuDivider<DocumentCommand>(
+      showInPrimary: false,
+      showInMenu: true,
+    ),
+    delete,
+  ],
+);
+```
+
+`showInPrimary` 控制直接显示的 action 之间是否绘制竖向分隔线；`showInMenu` 控制
+action menu 和 overflow menu 中的分隔符。两项都设为 `false` 时 divider 会保留在
+声明中，但不会显示。divider 不参与 action placement；如果某个区域内边界任一侧没有
+与它相邻的已声明 action，该分隔符会自动省略。
+
 ### 覆盖显示顺序
 
 需要让显示顺序不同于声明顺序时，使用 `primaryOrderOverride` 和
@@ -271,7 +308,9 @@ MaterialAdaptiveActions<DocumentCommand>.moreAction(
 自定义 renderer 只需导入 `package:adaptive_actions/core.dart`，提供自己的
 `ActionLayoutProfile` 和 `ActionLayoutOption`，创建 `ActionLayoutRequest`，再按顺序
 render 返回的 `ActionLayoutResult`。不需要统一的 UI 基类，也不需要改 Core。最终结果已经决定
-placement 和显示顺序，renderer 只负责将它转换成 UI。
+placement 和显示顺序，renderer 只负责将它转换成 UI。自定义 renderer 可以读取
+`primaryDividerBeforeActionIds` 与 `overflowDividerBeforeActionIds`，渲染已经解析好的
+顶级分组边界。
 
 </details>
 

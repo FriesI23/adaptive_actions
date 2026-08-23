@@ -150,10 +150,64 @@ void main() {
         );
 
         expect(collection.roots, [cut, copy]);
+        expect(collection.entries, [cut, copy]);
         expect(collection.placementConstraints, [editingConstraints]);
         expect(collection.roots.every((root) => root.children.isEmpty), isTrue);
       },
     );
+
+    test(
+      'withEntries preserves top-level dividers outside placement roots',
+      () {
+        final first = action('first');
+        final second = action('second');
+        const divider = AdaptiveMenuDivider<String>(showInPrimary: false);
+        final input = <AdaptiveMenuEntry<String>>[first, divider, second];
+        final collection = ActionCollection<String>.withEntries(entries: input);
+
+        input.clear();
+
+        expect(collection.entries, [first, divider, second]);
+        expect(collection.roots, [first, second]);
+        expect(collection.entries, isA<List<AdaptiveMenuEntry<String>>>());
+        expect(collection.entries.clear, throwsUnsupportedError);
+        expect(
+          collection,
+          ActionCollection<String>.withEntries(
+            entries: [first, divider, second],
+          ),
+        );
+        expect(
+          collection,
+          isNot(ActionCollection<String>(roots: [first, second])),
+        );
+      },
+    );
+
+    test('withEntries accepts a divider-only declaration', () {
+      final collection = ActionCollection<String>.withEntries(
+        entries: const [AdaptiveMenuDivider<String>()],
+      );
+
+      expect(collection.entries, const [AdaptiveMenuDivider<String>()]);
+      expect(collection.roots, isEmpty);
+    });
+
+    test('withEntries accepts a divider hidden in both targets', () {
+      final first = action('first');
+      final second = action('second');
+      const divider = AdaptiveMenuDivider<String>(
+        showInPrimary: false,
+        showInMenu: false,
+      );
+
+      final collection = ActionCollection<String>.withEntries(
+        entries: [first, divider, second],
+      );
+
+      expect(collection.entries, [first, divider, second]);
+      expect(collection.roots, [first, second]);
+    });
 
     test('defensively copies and exposes unmodifiable collections', () {
       final roots = [action('save')];
@@ -272,7 +326,11 @@ void main() {
       final collection = ActionCollection(roots: [menu]);
 
       expect(collection.roots.single.children, [leaf]);
-      expect(collection.roots.single.children.single.children, isEmpty);
+      expect(
+        (collection.roots.single.children.single as AdaptiveAction<String>)
+            .children,
+        isEmpty,
+      );
     });
 
     test('has structural equality and hashing', () {
