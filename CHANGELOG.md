@@ -1,3 +1,11 @@
+# Changelog
+
+## 0.1.1
+
+- Expanded the bilingual README feature overview and visual gallery with
+  focused demos for adaptive layout, nested overflow menus, custom button
+  builders, and RTL directionality.
+
 ## 0.1.0
 
 - Added a renderer-neutral action tree, placement constraints, deterministic

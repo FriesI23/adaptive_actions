@@ -1,6 +1,6 @@
 name: adaptive_actions
 description: Adaptive action placement with Material and Cupertino renderers for Flutter.
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/FriesI23/adaptive_actions
 repository: https://github.com/FriesI23/adaptive_actions
 issue_tracker: https://github.com/FriesI23/adaptive_actions/issues
@@ -17,6 +17,14 @@ screenshots:
     path: screenshots/material-adaptive-actions.webp
   - description: Cupertino actions adapting to the available width.
     path: screenshots/apple-adaptive-actions.webp
+  - description: Material nested menu hierarchy preserved in overflow.
+    path: screenshots/material-nested-overflow.webp
+  - description: Cupertino nested menu hierarchy preserved in overflow.
+    path: screenshots/apple-nested-overflow.webp
+  - description: Custom primary action and overflow trigger builders.
+    path: screenshots/custom-button-builders.webp
+  - description: Nested Cupertino menus adapting to RTL directionality.
+    path: screenshots/rtl-nested-menu.webp
 
 environment:
   sdk: ^3.11.5

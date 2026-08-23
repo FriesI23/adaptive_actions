@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD013 MD033 MD060 -->
 
 # adaptive_actions
 
@@ -13,13 +13,30 @@
 用于 Flutter 的自适应操作组件。重要操作直接显示，放不下的收入更多菜单；同一组
 操作可以同时用于 Material 和 Cupertino UI。
 
+## 功能特点
+
+- 直接显示的操作可随空间在 icon + label、icon-only 和更多菜单之间自适应切换。
+- Material 与 Cupertino renderer 共用同一棵操作树和 command payload。
+- 父级操作被压缩进更多菜单后，子菜单仍保留声明时的层级结构。
+- 支持 `pinned`、`automatic`、`overflowOnly` 和 `hidden` 放置方式，以及保留
+  优先级和各区域独立的显示顺序覆盖。
+- 支持普通操作、菜单和复合操作，以及可用状态、危险操作、tooltip 和语义标签。
+- 可以只替换直接显示的操作按钮或更多菜单入口，不接管菜单和布局逻辑。
+- 支持布局变化动画、锚定菜单和 LTR/RTL 自适应 affordance。
+- 提供平台无关的 resolver 与 renderer 扩展点，可接入自定义 UI。
+
 ## 效果展示
 
-| Material                                            | Apple（Cupertino）                            |
-| --------------------------------------------------- | --------------------------------------------- |
-| ![Material 操作随可用宽度展开和收起][material-demo] | ![Apple 操作随可用宽度展开和收起][apple-demo] |
+| Material                                                                        | Apple（Cupertino）                                                          |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Material 自适应操作**<br>![Material 操作随宽度变化][material-demo]             | **Apple 自适应操作**<br>![Apple 操作随宽度变化][apple-demo]                  |
+| **收入更多菜单后保留层级**<br>![Material example 操作在三档可用宽度下的变化][material-nested] | **收入更多菜单后保留层级**<br>![Apple example 操作在三档可用宽度下的变化][apple-nested] |
 
-## 快速开始
+| **自定义按钮 builder**                              | **RTL 多级菜单**                              |
+| --------------------------------------------------- | --------------------------------------------- |
+| ![自定义操作按钮和更多菜单入口][custom-buttons]     | ![Apple 多级菜单跟随 RTL 方向][rtl-nested-menu] |
+
+## 开始使用
 
 添加依赖：
 
@@ -116,17 +133,6 @@ CupertinoAdaptiveActions<DocumentCommand>.moreAction(
 通用构造器要求显式传入 `overflowIcon`，并保持 `overflowTooltip` 为空；
 `.moreAction` 构造器提供各平台惯用的更多图标，以及明显且可覆盖的
 `More actions` tooltip。需要多语言时，像上面的示例一样传入本地化字符串即可。
-
-## 组件提供的能力
-
-- 自适应调整直接显示的操作和更多菜单。
-- extended 和 icon-only 两种展示形式。
-- Material 与 Cupertino UI，包括多级菜单。
-- `pinned`、`automatic`、`overflowOnly` 和 `hidden` 四种放置方式。
-- 是否可用、危险操作样式、tooltip、语义标签和排序选项。
-- 可用空间变化时的动画。
-
-payload 仍由你的 app 持有，`onInvoke` 也留在你的 app 里。
 
 ## 更多示例与行为说明
 
@@ -321,6 +327,10 @@ SOFTWARE.
 [pubdev-points]: https://img.shields.io/pub/points/adaptive_actions?logo=dart
 [material-demo]: screenshots/material-adaptive-actions.webp
 [apple-demo]: screenshots/apple-adaptive-actions.webp
+[material-nested]: screenshots/material-nested-overflow.webp
+[apple-nested]: screenshots/apple-nested-overflow.webp
+[custom-buttons]: screenshots/custom-button-builders.webp
+[rtl-nested-menu]: screenshots/rtl-nested-menu.webp
 [buymeacoffee-badge]: https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black
 [alipay-badge]: https://img.shields.io/badge/alipay-00A1E9?style=for-the-badge&logo=alipay&logoColor=white
 [alipay-addr]: https://raw.githubusercontent.com/FriesI23/mhabit/main/docs/README/images/donate-alipay.jpg

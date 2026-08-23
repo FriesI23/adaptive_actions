@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD013 MD033 MD060 -->
 
 # adaptive_actions
 
@@ -14,13 +14,35 @@ Adaptive action bars for Flutter. Keep the important actions visible, move the
 rest into overflow, and share the same action model between Material and
 Cupertino UI.
 
+## Features
+
+- Responsive primary actions that change between icon-and-label and icon-only
+  presentations before moving into overflow.
+- Material and Cupertino renderers backed by the same action tree and command
+  payloads.
+- Hierarchical menus that keep their declared nesting when a parent action is
+  compressed into overflow.
+- Pinned, automatic, overflow-only, and hidden placement, plus retention
+  priorities and independent display-order overrides.
+- Leaf, menu, and composite actions with enabled, destructive, tooltip, and
+  semantic-label metadata.
+- Custom primary-action and overflow-trigger builders without replacing menu
+  ownership or layout resolution.
+- Animated layout changes, anchored menus, and LTR/RTL-aware affordances.
+- Platform-neutral resolver and renderer extension points for custom UI.
+
 ## See it in action
 
-| Material                                                                          | Apple (Cupertino)                                                           |
-| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| ![Material actions expand and collapse as available width changes][material-demo] | ![Apple actions expand and collapse as available width changes][apple-demo] |
+| Material                                                                              | Apple (Cupertino)                                                               |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Responsive Material actions**<br>![Material actions adapt to width][material-demo]   | **Responsive Apple actions**<br>![Apple actions adapt to width][apple-demo]       |
+| **Nested hierarchy in overflow**<br>![Material example actions across three available widths][material-nested] | **Nested hierarchy in overflow**<br>![Apple example actions across three available widths][apple-nested] |
 
-## Quick start
+| **Custom button builders**                         | **RTL-aware nested menus**                          |
+| -------------------------------------------------- | --------------------------------------------------- |
+| ![Custom action and More buttons][custom-buttons]  | ![Apple nested menu following RTL][rtl-nested-menu] |
+
+## Getting started
 
 Add the package:
 
@@ -119,17 +141,6 @@ values. The generic constructors require an explicit `overflowIcon` and keep
 `overflowTooltip` empty. The `.moreAction` constructors add the conventional
 platform More icon and a visible, overridable `More actions` tooltip; pass your
 localized string as shown above when localization is required.
-
-## What the widgets cover
-
-- Responsive primary actions and overflow.
-- Extended and icon-only presentations.
-- Material and Cupertino UI, including nested menus.
-- Pinned, automatic, overflow-only, and hidden placement.
-- Enabled, destructive, tooltip, semantic label, and ordering options.
-- Animated changes when available space changes.
-
-The payload is still yours, and `onInvoke` stays in your app.
 
 ## More examples and behavior
 
@@ -331,6 +342,10 @@ SOFTWARE.
 [pubdev-points]: https://img.shields.io/pub/points/adaptive_actions?logo=dart
 [material-demo]: screenshots/material-adaptive-actions.webp
 [apple-demo]: screenshots/apple-adaptive-actions.webp
+[material-nested]: screenshots/material-nested-overflow.webp
+[apple-nested]: screenshots/apple-nested-overflow.webp
+[custom-buttons]: screenshots/custom-button-builders.webp
+[rtl-nested-menu]: screenshots/rtl-nested-menu.webp
 [buymeacoffee-badge]: https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black
 [alipay-badge]: https://img.shields.io/badge/alipay-00A1E9?style=for-the-badge&logo=alipay&logoColor=white
 [alipay-addr]: https://raw.githubusercontent.com/FriesI23/mhabit/main/docs/README/images/donate-alipay.jpg
