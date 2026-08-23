@@ -1091,6 +1091,42 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
   }
 }
 
+String? _materialMenuSemanticsLabel(ActionMetadata metadata) =>
+    metadata.semanticLabel ??
+    (metadata.subtitle == null ? metadata.label : null);
+
+final class _MaterialMenuLabel<T extends Object> extends StatelessWidget {
+  const _MaterialMenuLabel({required this.action});
+
+  final AdaptiveAction<T> action;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = action.metadata.subtitle;
+    if (subtitle == null) {
+      return Text(action.metadata.label);
+    }
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final subtitleColor = action.isEnabled
+        ? colorScheme.onSurfaceVariant
+        : colorScheme.onSurface.withValues(alpha: 0.38);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(action.metadata.label),
+        DefaultTextStyle.merge(
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: subtitleColor),
+          child: Text(subtitle),
+        ),
+      ],
+    );
+  }
+}
+
 final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
   const _MaterialMenuInvokeItem({
     required this.action,
@@ -1111,7 +1147,7 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: MenuItemButton(
-        semanticsLabel: action.metadata.semanticLabel ?? action.metadata.label,
+        semanticsLabel: _materialMenuSemanticsLabel(action.metadata),
         leadingIcon: iconBuilder?.call(context, action),
         trailingIcon: showsSubmenuAffordance
             ? const Icon(Icons.arrow_right)
@@ -1122,7 +1158,7 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
         onPressed: action.isEnabled && action.payload != null
             ? () => invokeAdaptiveAction(action, onInvoke)
             : null,
-        child: Text(action.metadata.label),
+        child: _MaterialMenuLabel(action: action),
       ),
     );
   }
@@ -1146,7 +1182,8 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
     final error = Theme.of(context).colorScheme.error;
     final tooltip = action.metadata.tooltip ?? action.metadata.label;
     return Semantics(
-      label: action.metadata.semanticLabel ?? action.metadata.label,
+      label: _materialMenuSemanticsLabel(action.metadata),
+      excludeSemantics: action.metadata.semanticLabel != null,
       child: Tooltip(
         message: tooltip,
         child: SubmenuButton(
@@ -1173,7 +1210,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
                 menuAnimationEnabled: menuAnimationEnabled,
               ),
           ],
-          child: Text(action.metadata.label),
+          child: _MaterialMenuLabel(action: action),
         ),
       ),
     );

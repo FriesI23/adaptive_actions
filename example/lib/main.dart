@@ -553,6 +553,10 @@ final class _AdaptiveActionsDemoPageState
             DemoRenderer.material => 'Switch to Apple',
             DemoRenderer.apple => 'Switch to Material',
           },
+          subtitle: switch (_renderer) {
+            DemoRenderer.material => 'Currently using Material UI',
+            DemoRenderer.apple => 'Currently using Apple UI',
+          },
           iconKey: 'renderer',
         ),
         payload: DemoCommand.toggleRenderer,

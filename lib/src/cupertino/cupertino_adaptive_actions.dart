@@ -1343,6 +1343,10 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
   }
 }
 
+String? _cupertinoMenuSemanticsLabel(ActionMetadata metadata) =>
+    metadata.semanticLabel ??
+    (metadata.subtitle == null ? metadata.label : null);
+
 final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
   const _CupertinoMenuInvokeItem({
     required this.action,
@@ -1362,12 +1366,16 @@ final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: action.metadata.semanticLabel ?? action.metadata.label,
+    label: _cupertinoMenuSemanticsLabel(action.metadata),
+    excludeSemantics: action.metadata.semanticLabel != null,
     tooltip: action.metadata.tooltip,
     button: true,
     enabled: action.isEnabled,
     child: CupertinoMenuItem(
       leading: iconBuilder?.call(context, action),
+      subtitle: action.metadata.subtitle == null
+          ? null
+          : Text(action.metadata.subtitle!),
       trailing: showsSubmenuAffordance
           ? _cupertinoForwardIcon(textDirection)
           : null,
@@ -1440,12 +1448,16 @@ final class _CupertinoSubmenuItemState<T extends Object>
           ),
       ],
       builder: (context, controller, child) => Semantics(
-        label: action.metadata.semanticLabel ?? action.metadata.label,
+        label: _cupertinoMenuSemanticsLabel(action.metadata),
+        excludeSemantics: action.metadata.semanticLabel != null,
         tooltip: action.metadata.tooltip,
         button: true,
         enabled: true,
         child: CupertinoMenuItem(
           leading: widget.iconBuilder?.call(context, action),
+          subtitle: action.metadata.subtitle == null
+              ? null
+              : Text(action.metadata.subtitle!),
           trailing: _cupertinoForwardIcon(widget.textDirection),
           focusNode: _focusNode,
           isDestructiveAction: action.metadata.isDestructive,

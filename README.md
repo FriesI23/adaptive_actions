@@ -78,6 +78,7 @@ final documentActions = ActionCollection<DocumentCommand>(
       id: ActionId('delete'),
       metadata: const ActionMetadata(
         label: 'Delete',
+        subtitle: 'This cannot be undone',
         iconKey: 'delete',
         isDestructive: true,
       ),
@@ -136,8 +137,10 @@ CupertinoAdaptiveActions<DocumentCommand>.moreAction(
 
 Only the widget and icon mapping change.
 
-Action labels, tooltips, and semantic labels come from your `ActionMetadata`
-values. The generic constructors require an explicit `overflowIcon` and keep
+Action labels, optional menu subtitles, tooltips, and semantic labels come from
+your `ActionMetadata` values. A `subtitle` appears below its label in Material
+and Apple menus, but does not change primary action buttons or their layout.
+The generic constructors require an explicit `overflowIcon` and keep
 `overflowTooltip` empty. The `.moreAction` constructors add the conventional
 platform More icon and a visible, overridable `More actions` tooltip; pass your
 localized string as shown above when localization is required.

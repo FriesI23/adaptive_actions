@@ -37,6 +37,7 @@ void main() {
   AdaptiveAction<String> action(
     String id, {
     String? label,
+    String? subtitle,
     String? tooltip,
     String? semanticLabel,
     String? iconKey,
@@ -47,6 +48,7 @@ void main() {
     id: ActionId(id),
     metadata: ActionMetadata(
       label: label ?? id,
+      subtitle: subtitle,
       tooltip: tooltip,
       semanticLabel: semanticLabel,
       iconKey: iconKey,
@@ -428,6 +430,139 @@ void main() {
     expect(find.bySemanticsLabel('Save document'), findsOneWidget);
     await tester.tap(find.text('save'));
     expect(invoked, isEmpty);
+  });
+
+  testWidgets('renders native Cupertino menu subtitles but not in primary', (
+    tester,
+  ) async {
+    final save = action(
+      'save',
+      subtitle: 'Current document',
+      iconKey: 'save',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 44,
+        actionIconBuilder: iconBuilder,
+      ),
+    );
+
+    expect(find.text('Current document'), findsNothing);
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+
+    final menuItem = tester.widget<CupertinoMenuItem>(
+      find.widgetWithText(CupertinoMenuItem, 'save'),
+    );
+    expect((menuItem.subtitle! as Text).data, 'Current document');
+    expect(find.byIcon(CupertinoIcons.floppy_disk), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp(r'save[\s\S]*Current document')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('renders subtitles for disabled, submenu, and composite items', (
+    tester,
+  ) async {
+    final disabled = action(
+      'disabled',
+      subtitle: 'Not currently available',
+      semanticLabel: 'Unavailable command',
+      isEnabled: false,
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('sort'),
+      metadata: const ActionMetadata(
+        label: 'Sort',
+        subtitle: 'Choose an arrangement',
+      ),
+      children: [action('date')],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final composite = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(
+        label: 'Open',
+        subtitle: 'Most recent document',
+      ),
+      payload: 'open-command',
+      children: [action('recent')],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [disabled, menu, composite]),
+        onInvoke: (_) {},
+        width: 44,
+      ),
+    );
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Unavailable command'), findsOneWidget);
+    for (final entry in <(String, String)>[
+      ('disabled', 'Not currently available'),
+      ('Sort', 'Choose an arrangement'),
+      ('Open', 'Most recent document'),
+    ]) {
+      final item = tester.widget<CupertinoMenuItem>(
+        find.widgetWithText(CupertinoMenuItem, entry.$1),
+      );
+      expect((item.subtitle! as Text).data, entry.$2);
+    }
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Most recent document'), findsNWidgets(2));
+  });
+
+  testWidgets('allows long native subtitles with large text scaling', (
+    tester,
+  ) async {
+    final details = action(
+      'Arrangement options',
+      subtitle: 'Choose how every document is arranged in this workspace',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: CupertinoPageScaffold(
+            child: CupertinoAdaptiveActions<String>.moreAction(
+              actions: ActionCollection(roots: [details]),
+              onInvoke: (_) {},
+              primaryCapacity: 44,
+              fadeDuration: Duration.zero,
+              resizeDuration: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+
+    expect(find.text(details.metadata.subtitle!), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

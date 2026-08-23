@@ -36,6 +36,7 @@ void main() {
   AdaptiveAction<String> action(
     String id, {
     String? label,
+    String? subtitle,
     String? tooltip,
     String? semanticLabel,
     String? iconKey,
@@ -46,6 +47,7 @@ void main() {
     id: ActionId(id),
     metadata: ActionMetadata(
       label: label ?? id,
+      subtitle: subtitle,
       tooltip: tooltip,
       semanticLabel: semanticLabel,
       iconKey: iconKey,
@@ -1129,6 +1131,177 @@ void main() {
       expect(invoked, isEmpty);
     },
   );
+
+  testWidgets('renders Material menu subtitles without changing primary', (
+    tester,
+  ) async {
+    final save = action(
+      'save',
+      subtitle: 'Current document',
+      iconKey: 'save',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 48,
+        iconBuilder: iconBuilder,
+      ),
+    );
+
+    expect(find.text('Current document'), findsNothing);
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('save'), findsOneWidget);
+    expect(find.text('Current document'), findsOneWidget);
+    expect(find.byIcon(Icons.save), findsOneWidget);
+    final subtitleContext = tester.element(find.text('Current document'));
+    final subtitleStyle = DefaultTextStyle.of(subtitleContext).style;
+    expect(
+      subtitleStyle.fontSize,
+      Theme.of(subtitleContext).textTheme.bodyMedium?.fontSize,
+    );
+    expect(
+      subtitleStyle.color,
+      Theme.of(subtitleContext).colorScheme.onSurfaceVariant,
+    );
+    expect(
+      tester.getCenter(find.byIcon(Icons.save)).dy,
+      closeTo(
+        tester
+            .getCenter(
+              find
+                  .ancestor(
+                    of: find.text('Current document'),
+                    matching: find.byType(Column),
+                  )
+                  .first,
+            )
+            .dy,
+        0.01,
+      ),
+    );
+    expect(
+      find.bySemanticsLabel(RegExp(r'save[\s\S]*Current document')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('uses explicit menu semantics and disabled subtitle color', (
+    tester,
+  ) async {
+    final disabled = action(
+      'disabled',
+      subtitle: 'Not currently available',
+      semanticLabel: 'Unavailable command',
+      isEnabled: false,
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [disabled]),
+        onInvoke: (_) {},
+        width: 48,
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Unavailable command'), findsOneWidget);
+    final subtitleContext = tester.element(
+      find.text('Not currently available'),
+    );
+    expect(
+      DefaultTextStyle.of(subtitleContext).style.color,
+      Theme.of(subtitleContext).colorScheme.onSurface.withValues(alpha: 0.38),
+    );
+  });
+
+  testWidgets('renders subtitles on submenu and composite menu entries', (
+    tester,
+  ) async {
+    final menu = AdaptiveAction<String>.menu(
+      id: ActionId('sort'),
+      metadata: const ActionMetadata(
+        label: 'Sort',
+        subtitle: 'Choose an arrangement',
+      ),
+      children: [action('date')],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final composite = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(
+        label: 'Open',
+        subtitle: 'Most recent document',
+      ),
+      payload: 'open-command',
+      children: [action('recent')],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [menu, composite]),
+        onInvoke: (_) {},
+        width: 48,
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose an arrangement'), findsOneWidget);
+    expect(find.text('Most recent document'), findsOneWidget);
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Most recent document'), findsNWidgets(2));
+  });
+
+  testWidgets('allows long menu subtitles with large text scaling', (
+    tester,
+  ) async {
+    final details = action(
+      'Arrangement options',
+      subtitle: 'Choose how every document is arranged in this workspace',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: MaterialAdaptiveActions<String>.moreAction(
+              actions: ActionCollection(roots: [details]),
+              onInvoke: (_) {},
+              primaryCapacity: 48,
+              fadeDuration: Duration.zero,
+              resizeDuration: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(details.metadata.subtitle!), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'Material menu animation defaults on and reaches nested submenus',

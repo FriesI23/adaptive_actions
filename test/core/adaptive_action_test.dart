@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const saveMetadata = ActionMetadata(
     label: 'Save',
+    subtitle: 'Current document',
     tooltip: 'Save document',
     semanticLabel: 'Save current document',
     iconKey: 'save',
@@ -27,6 +28,7 @@ void main() {
 
       expect(first, second);
       expect(first.hashCode, second.hashCode);
+      expect(first.subtitle, isNull);
       expect(first.tooltip, isNull);
       expect(first.semanticLabel, isNull);
       expect(first.iconKey, isNull);
@@ -38,6 +40,7 @@ void main() {
         saveMetadata,
         const ActionMetadata(
           label: 'Save',
+          subtitle: 'Current document',
           tooltip: 'Save document',
           semanticLabel: 'Save current document',
           iconKey: 'save',
@@ -48,6 +51,19 @@ void main() {
         isNot(
           const ActionMetadata(
             label: 'Save',
+            subtitle: 'Another document',
+            tooltip: 'Save document',
+            semanticLabel: 'Save current document',
+            iconKey: 'save',
+          ),
+        ),
+      );
+      expect(
+        saveMetadata,
+        isNot(
+          const ActionMetadata(
+            label: 'Save',
+            subtitle: 'Current document',
             tooltip: 'Save document',
             semanticLabel: 'Save current document',
             iconKey: 'save',
@@ -55,6 +71,7 @@ void main() {
           ),
         ),
       );
+      expect(saveMetadata.toString(), contains('subtitle: Current document'));
     });
   });
 

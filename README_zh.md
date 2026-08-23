@@ -72,6 +72,7 @@ final documentActions = ActionCollection<DocumentCommand>(
       id: ActionId('delete'),
       metadata: const ActionMetadata(
         label: 'Delete',
+        subtitle: '此操作无法撤销',
         iconKey: 'delete',
         isDestructive: true,
       ),
@@ -129,7 +130,9 @@ CupertinoAdaptiveActions<DocumentCommand>.moreAction(
 
 这里只需更换 widget 和 icon 映射。
 
-操作的 label、tooltip 和 semantic label 都来自调用方传入的 `ActionMetadata`。
+操作的 label、可选 menu subtitle、tooltip 和 semantic label 都来自调用方传入的
+`ActionMetadata`。`subtitle` 会显示在 Material 和 Apple 菜单的 label 下方，
+但不会改变顶部 primary action 或其布局。
 通用构造器要求显式传入 `overflowIcon`，并保持 `overflowTooltip` 为空；
 `.moreAction` 构造器提供各平台惯用的更多图标，以及明显且可覆盖的
 `More actions` tooltip。需要多语言时，像上面的示例一样传入本地化字符串即可。
