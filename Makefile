@@ -63,7 +63,8 @@ analyze-example:
 
 test:
 ifneq ($(MACHINE_OUT),)
-	@$(FLUTTER) test --machine > $(MACHINE_OUT)
+	@$(FLUTTER) pub get
+	@$(FLUTTER) test --file-reporter=json:$(MACHINE_OUT)
 else ifeq ($(CI),1)
 	@$(FLUTTER) test --reporter github
 else
@@ -72,7 +73,8 @@ endif
 
 test-example:
 ifneq ($(MACHINE_OUT),)
-	@cd $(EXAMPLE_DIR) && $(FLUTTER) test --machine > $(MACHINE_OUT)
+	@cd $(EXAMPLE_DIR) && $(FLUTTER) pub get
+	@cd $(EXAMPLE_DIR) && $(FLUTTER) test --file-reporter=json:$(MACHINE_OUT)
 else ifeq ($(CI),1)
 	@cd $(EXAMPLE_DIR) && $(FLUTTER) test --reporter github
 else
