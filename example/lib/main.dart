@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:adaptive_actions/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'cupertino_demo.dart';
+import 'demo_dialogs.dart';
 import 'demo_layout_reporter.dart';
 import 'demo_settings.dart';
 import 'demo_settings_widgets.dart';
@@ -645,6 +647,20 @@ final class _AdaptiveActionsDemoPageState
     if (command == DemoCommand.toggleTheme) {
       widget.onThemeToggle();
     }
+    if (command == DemoCommand.browse) {
+      unawaited(_showOpenDocumentDemo());
+    }
+  }
+
+  Future<void> _showOpenDocumentDemo() async {
+    final document = await showOpenDocumentDemoDialog(
+      context,
+      useCupertino: _renderer == DemoRenderer.apple,
+    );
+    if (!mounted || document == null) return;
+    setState(() {
+      _lastInvocation = 'Opened $document';
+    });
   }
 
   double _maximumMaterialAppBarActionWidth(

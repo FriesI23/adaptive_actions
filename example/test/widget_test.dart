@@ -1,5 +1,6 @@
 import 'package:adaptive_actions/cupertino.dart';
 import 'package:adaptive_actions/material.dart';
+import 'package:adaptive_actions_example/demo_dialogs.dart';
 import 'package:adaptive_actions_example/demo_settings.dart';
 import 'package:adaptive_actions_example/demo_widgets.dart';
 import 'package:adaptive_actions_example/main.dart';
@@ -42,6 +43,48 @@ void main() {
     expect(defaultDemoRenderer(TargetPlatform.windows), DemoRenderer.material);
     expect(defaultDemoRenderer(TargetPlatform.fuchsia), DemoRenderer.material);
   });
+
+  for (final renderer in [DemoRenderer.material, DemoRenderer.apple]) {
+    testWidgets(
+      'Open menu presents a ${renderer.label} document dialog after closing',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = switch (renderer) {
+          DemoRenderer.material => TargetPlatform.android,
+          DemoRenderer.apple => TargetPlatform.iOS,
+        };
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+        await tester.pumpWidget(const AdaptiveActionsExampleApp());
+        await tester.pumpAndSettle();
+        final actionRegion = find.byKey(appBarActionsKey);
+        final submenuTrigger = find.descendant(
+          of: actionRegion,
+          matching: find.byIcon(
+            renderer == DemoRenderer.apple
+                ? CupertinoIcons.chevron_down
+                : Icons.arrow_drop_down,
+          ),
+        );
+        expect(submenuTrigger, findsOneWidget);
+
+        await tester.tap(submenuTrigger);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Browse files'));
+        expect(find.byKey(openDocumentDialogKey), findsNothing);
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(openDocumentDialogKey), findsOneWidget);
+        expect(find.text('Open document'), findsOneWidget);
+        expect(find.text('Project proposal'), findsOneWidget);
+        expect(find.text('Meeting notes'), findsOneWidget);
+
+        await tester.tap(find.byKey(projectProposalDialogOptionKey));
+        await tester.pumpAndSettle();
+        expect(find.byKey(openDocumentDialogKey), findsNothing);
+        debugDefaultTargetPlatformOverride = null;
+      },
+    );
+  }
 
   for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
     testWidgets('defaults to the Apple renderer on ${platform.name}', (

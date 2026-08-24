@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../core.dart';
 import '../widgets/action_invocation.dart';
@@ -314,6 +315,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.overflowButtonBuilder,
     this.onOverflowMenuOpened,
     this.onOverflowMenuClosed,
+    this.invokeAfterMenuClosed = false,
     required this.overflowIcon,
     this.overflowTooltip = '',
     this.presentationForAction,
@@ -343,6 +345,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.overflowButtonBuilder,
     this.onOverflowMenuOpened,
     this.onOverflowMenuClosed,
+    this.invokeAfterMenuClosed = false,
     this.presentationForAction,
     this.presentationOverride,
     this.style = const CupertinoAdaptiveActionsStyle(),
@@ -435,6 +438,15 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
 
   /// Called after the overflow menu finishes closing.
   final VoidCallback? onOverflowMenuClosed;
+
+  /// Whether menu actions wait for the root menu to finish closing before
+  /// invoking their payload.
+  ///
+  /// When false, menu actions are invoked after the close request at the next
+  /// post-frame boundary. When true, they are invoked one post-frame after the
+  /// root menu's [CupertinoMenuAnchor.onClose] callback. Menu actions are never
+  /// invoked synchronously. Primary toolbar actions are unaffected.
+  final bool invokeAfterMenuClosed;
 
   /// Selects a primary-button presentation independently for each root action.
   ///
@@ -542,6 +554,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
       overflowButtonBuilder: overflowButtonBuilder,
       onOverflowMenuOpened: onOverflowMenuOpened,
       onOverflowMenuClosed: onOverflowMenuClosed,
+      invokeAfterMenuClosed: invokeAfterMenuClosed,
       style: style,
       overflowIcon: overflowIcon,
       overflowTooltip: overflowTooltip,
@@ -594,6 +607,7 @@ final class _AnimatedCupertinoActionsRegion<T extends Object>
     required this.overflowButtonBuilder,
     required this.onOverflowMenuOpened,
     required this.onOverflowMenuClosed,
+    required this.invokeAfterMenuClosed,
     required this.style,
     required this.overflowIcon,
     required this.overflowTooltip,
@@ -614,6 +628,7 @@ final class _AnimatedCupertinoActionsRegion<T extends Object>
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
   final VoidCallback? onOverflowMenuOpened;
   final VoidCallback? onOverflowMenuClosed;
+  final bool invokeAfterMenuClosed;
   final CupertinoAdaptiveActionsStyle style;
   final Widget overflowIcon;
   final String overflowTooltip;
@@ -636,6 +651,7 @@ final class _AnimatedCupertinoActionsRegion<T extends Object>
       overflowButtonBuilder: overflowButtonBuilder,
       onOverflowMenuOpened: onOverflowMenuOpened,
       onOverflowMenuClosed: onOverflowMenuClosed,
+      invokeAfterMenuClosed: invokeAfterMenuClosed,
       style: style,
       overflowIcon: overflowIcon,
       overflowTooltip: overflowTooltip,
@@ -681,6 +697,7 @@ final class _CupertinoRegionData<T extends Object> {
     required this.overflowButtonBuilder,
     required this.onOverflowMenuOpened,
     required this.onOverflowMenuClosed,
+    required this.invokeAfterMenuClosed,
     required this.style,
     required this.overflowIcon,
     required this.overflowTooltip,
@@ -697,6 +714,7 @@ final class _CupertinoRegionData<T extends Object> {
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
   final VoidCallback? onOverflowMenuOpened;
   final VoidCallback? onOverflowMenuClosed;
+  final bool invokeAfterMenuClosed;
   final CupertinoAdaptiveActionsStyle style;
   final Widget overflowIcon;
   final String overflowTooltip;
@@ -800,6 +818,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
         overflowButtonBuilder: data.overflowButtonBuilder,
         onMenuOpened: data.onOverflowMenuOpened,
         onMenuClosed: data.onOverflowMenuClosed,
+        invokeAfterMenuClosed: data.invokeAfterMenuClosed,
         style: data.style,
         icon: data.overflowIcon,
         tooltip: data.overflowTooltip,
@@ -832,6 +851,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
           entries: action.children,
           onInvoke: data.onInvoke,
           iconBuilder: data.iconBuilder,
+          invokeAfterMenuClosed: data.invokeAfterMenuClosed,
           triggerBuilder: (context, toggle, focusNode) =>
               _CupertinoMenuTriggerFocusHalo(
                 child: _CustomizableCupertinoActionButton<T>(
@@ -867,6 +887,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
               entries: action.children,
               onInvoke: data.onInvoke,
               iconBuilder: data.iconBuilder,
+              invokeAfterMenuClosed: data.invokeAfterMenuClosed,
               triggerBuilder: (context, toggle, focusNode) => Semantics(
                 label:
                     action.metadata.semanticLabel ??
@@ -1192,6 +1213,7 @@ final class _CupertinoActionMenuAnchor<T extends Object>
     required this.entries,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.invokeAfterMenuClosed,
     required this.triggerBuilder,
     this.onMenuOpened,
     this.onMenuClosed,
@@ -1200,6 +1222,7 @@ final class _CupertinoActionMenuAnchor<T extends Object>
   final List<AdaptiveMenuEntry<T>> entries;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
+  final bool invokeAfterMenuClosed;
   final _CupertinoMenuTriggerBuilder triggerBuilder;
   final VoidCallback? onMenuOpened;
   final VoidCallback? onMenuClosed;
@@ -1217,6 +1240,8 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
   bool _openedWithKeyboard = false;
   bool _closing = false;
   bool _reopenAfterClose = false;
+  bool _closeRequestedForInvocation = false;
+  ({T payload, ValueChanged<T> callback})? _pendingInvocation;
 
   @override
   void dispose() {
@@ -1226,6 +1251,7 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
 
   void _toggleMenu() {
     if (_closing) {
+      if (_closeRequestedForInvocation) return;
       _reopenAfterClose = !_reopenAfterClose;
       return;
     }
@@ -1251,6 +1277,29 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
     _controller.close();
   }
 
+  void _requestMenuInvocation(T payload) {
+    if (_closeRequestedForInvocation) return;
+    _closeRequestedForInvocation = true;
+    _pendingInvocation = (payload: payload, callback: widget.onInvoke);
+    _reopenAfterClose = false;
+    _closeMenu();
+    if (!widget.invokeAfterMenuClosed) {
+      _schedulePendingInvocation(
+        debugLabel: 'CupertinoAdaptiveActions.invokeNextFrame',
+      );
+    }
+  }
+
+  void _schedulePendingInvocation({required String debugLabel}) {
+    final pendingInvocation = _pendingInvocation;
+    _pendingInvocation = null;
+    if (pendingInvocation == null) return;
+    SchedulerBinding.instance.addPostFrameCallback(
+      (_) => pendingInvocation.callback(pendingInvocation.payload),
+      debugLabel: debugLabel,
+    );
+  }
+
   void _handlePointerDown(PointerDownEvent event) {
     _pointerActivationPending = true;
   }
@@ -1274,7 +1323,14 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
     if (!_openedWithKeyboard) _focusNode.unfocus();
     _openedWithKeyboard = false;
     _closing = false;
+    if (_closeRequestedForInvocation) {
+      _reopenAfterClose = false;
+    }
+    _closeRequestedForInvocation = false;
     widget.onMenuClosed?.call();
+    _schedulePendingInvocation(
+      debugLabel: 'CupertinoAdaptiveActions.invokeAfterMenuClosed',
+    );
     if (_reopenAfterClose) {
       _reopenAfterClose = false;
       scheduleMicrotask(() {
@@ -1296,9 +1352,8 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
           if (_cupertinoMenuEntryIsVisible(entry))
             _CupertinoMenuEntry<T>(
               entry: entry,
-              onInvoke: widget.onInvoke,
+              onRequestInvoke: _requestMenuInvocation,
               iconBuilder: widget.iconBuilder,
-              closeMenu: _closeMenu,
               textDirection: textDirection,
             ),
       ],
@@ -1321,6 +1376,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     required this.overflowButtonBuilder,
     required this.onMenuOpened,
     required this.onMenuClosed,
+    required this.invokeAfterMenuClosed,
     required this.style,
     required this.icon,
     required this.tooltip,
@@ -1333,6 +1389,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
   final VoidCallback? onMenuOpened;
   final VoidCallback? onMenuClosed;
+  final bool invokeAfterMenuClosed;
   final CupertinoAdaptiveActionsStyle style;
   final Widget icon;
   final String tooltip;
@@ -1350,6 +1407,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     iconBuilder: iconBuilder,
     onMenuOpened: onMenuOpened,
     onMenuClosed: onMenuClosed,
+    invokeAfterMenuClosed: invokeAfterMenuClosed,
     triggerBuilder: (context, toggle, focusNode) {
       Widget defaultBuilder(
         BuildContext context,
@@ -1382,16 +1440,14 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
 final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
   const _CupertinoMenuEntry({
     required this.entry,
-    required this.onInvoke,
+    required this.onRequestInvoke,
     required this.iconBuilder,
-    required this.closeMenu,
     required this.textDirection,
   });
 
   final AdaptiveMenuEntry<T> entry;
-  final ValueChanged<T> onInvoke;
+  final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
-  final VoidCallback closeMenu;
   final TextDirection textDirection;
 
   @override
@@ -1406,9 +1462,8 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
     if (action.children.isEmpty || !action.isEnabled) {
       return _CupertinoMenuInvokeItem<T>(
         action: action,
-        onInvoke: onInvoke,
+        onRequestInvoke: onRequestInvoke,
         iconBuilder: iconBuilder,
-        closeMenu: closeMenu,
         textDirection: textDirection,
         showsSubmenuAffordance: action.children.isNotEmpty,
       );
@@ -1416,9 +1471,8 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
 
     return _CupertinoSubmenuItem<T>(
       action: action,
-      onInvoke: onInvoke,
+      onRequestInvoke: onRequestInvoke,
       iconBuilder: iconBuilder,
-      closeMenu: closeMenu,
       textDirection: textDirection,
     );
   }
@@ -1435,17 +1489,15 @@ String? _cupertinoMenuSemanticsLabel(ActionMetadata metadata) =>
 final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
   const _CupertinoMenuInvokeItem({
     required this.action,
-    required this.onInvoke,
+    required this.onRequestInvoke,
     required this.iconBuilder,
-    required this.closeMenu,
     required this.textDirection,
     this.showsSubmenuAffordance = false,
   });
 
   final AdaptiveAction<T> action;
-  final ValueChanged<T> onInvoke;
+  final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
-  final VoidCallback closeMenu;
   final TextDirection textDirection;
   final bool showsSubmenuAffordance;
 
@@ -1467,10 +1519,7 @@ final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
       isDestructiveAction: action.metadata.isDestructive,
       requestCloseOnActivate: false,
       onPressed: action.isEnabled && action.payload != null
-          ? () {
-              closeMenu();
-              invokeAdaptiveAction(action, onInvoke);
-            }
+          ? () => invokeAdaptiveAction(action, onRequestInvoke)
           : null,
       child: Text(action.metadata.label),
     ),
@@ -1480,16 +1529,14 @@ final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
 final class _CupertinoSubmenuItem<T extends Object> extends StatefulWidget {
   const _CupertinoSubmenuItem({
     required this.action,
-    required this.onInvoke,
+    required this.onRequestInvoke,
     required this.iconBuilder,
-    required this.closeMenu,
     required this.textDirection,
   });
 
   final AdaptiveAction<T> action;
-  final ValueChanged<T> onInvoke;
+  final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
-  final VoidCallback closeMenu;
   final TextDirection textDirection;
 
   @override
@@ -1518,18 +1565,16 @@ final class _CupertinoSubmenuItemState<T extends Object>
         if (action.payload != null)
           _CupertinoMenuInvokeItem<T>(
             action: action,
-            onInvoke: widget.onInvoke,
+            onRequestInvoke: widget.onRequestInvoke,
             iconBuilder: widget.iconBuilder,
-            closeMenu: widget.closeMenu,
             textDirection: widget.textDirection,
           ),
         for (final child in action.children)
           if (_cupertinoMenuEntryIsVisible(child))
             _CupertinoMenuEntry<T>(
               entry: child,
-              onInvoke: widget.onInvoke,
+              onRequestInvoke: widget.onRequestInvoke,
               iconBuilder: widget.iconBuilder,
-              closeMenu: widget.closeMenu,
               textDirection: widget.textDirection,
             ),
       ],

@@ -1481,6 +1481,84 @@ void main() {
     },
   );
 
+  for (final menuAnimationEnabled in [false, true]) {
+    testWidgets(
+      'overflow invocation safely replaces an AppBar LayoutBuilder host '
+      'with menuAnimationEnabled: $menuAnimationEnabled',
+      (tester) async {
+        final invoked = <String>[];
+        final replace = action(
+          'replace',
+          placementPolicy: ActionPlacementPolicy(
+            placement: ActionPlacement.overflowOnly,
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: _MaterialInvocationReplacementHost(
+              actions: ActionCollection(roots: [replace]),
+              menuAnimationEnabled: menuAnimationEnabled,
+              onInvoke: invoked.add,
+            ),
+          ),
+        );
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(MenuItemButton, 'replace'));
+        expect(invoked, isEmpty);
+        await tester.pumpAndSettle();
+
+        expect(find.text('replacement'), findsOneWidget);
+        expect(invoked, ['replace-command']);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('nested menu invocation safely replaces its AppBar host', (
+    tester,
+  ) async {
+    final invoked = <String>[];
+    final leaf = action('replace');
+    final inner = AdaptiveAction<String>.menu(
+      id: ActionId('inner'),
+      metadata: const ActionMetadata(label: 'Inner'),
+      children: [leaf],
+    );
+    final outer = AdaptiveAction<String>.menu(
+      id: ActionId('outer'),
+      metadata: const ActionMetadata(label: 'Outer'),
+      children: [inner],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _MaterialInvocationReplacementHost(
+          actions: ActionCollection(roots: [outer]),
+          menuAnimationEnabled: true,
+          onInvoke: invoked.add,
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Outer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inner'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(MenuItemButton, 'replace'));
+    expect(invoked, isEmpty);
+    await tester.pumpAndSettle();
+
+    expect(find.text('replacement'), findsOneWidget);
+    expect(invoked, ['replace-command']);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'primary menu opens direct children and dispatches their payload',
     (tester) async {
@@ -2150,6 +2228,65 @@ void main() {
     await tester.pumpAndSettle();
     expect(invoked, ['first-command', 'third-command']);
   });
+}
+
+final class _MaterialInvocationReplacementHost extends StatefulWidget {
+  const _MaterialInvocationReplacementHost({
+    required this.actions,
+    required this.menuAnimationEnabled,
+    required this.onInvoke,
+  });
+
+  final ActionCollection<String> actions;
+  final bool menuAnimationEnabled;
+  final ValueChanged<String> onInvoke;
+
+  @override
+  State<_MaterialInvocationReplacementHost> createState() =>
+      _MaterialInvocationReplacementHostState();
+}
+
+final class _MaterialInvocationReplacementHostState
+    extends State<_MaterialInvocationReplacementHost> {
+  bool _replaced = false;
+
+  void _handleInvoke(String payload) {
+    widget.onInvoke(payload);
+    setState(() {
+      _replaced = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_replaced) {
+      return const Scaffold(body: Center(child: Text('replacement')));
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Actions'),
+        actions: [
+          SizedBox(
+            width: 48,
+            child: LayoutBuilder(
+              builder: (context, constraints) =>
+                  MaterialAdaptiveActions<String>.moreAction(
+                    actions: widget.actions,
+                    onInvoke: _handleInvoke,
+                    primaryCapacity: constraints.maxWidth,
+                    maxPrimaryActions: 0,
+                    menuAnimationEnabled: widget.menuAnimationEnabled,
+                    fadeDuration: Duration.zero,
+                    resizeDuration: Duration.zero,
+                  ),
+            ),
+          ),
+        ],
+      ),
+      body: const SizedBox(),
+    );
+  }
 }
 
 final class _RecordingPlacementDelegate implements ActionPlacementDelegate {

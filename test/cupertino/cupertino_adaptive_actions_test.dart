@@ -87,6 +87,9 @@ void main() {
     Duration resizeDuration = Duration.zero,
     Widget overflowIcon = const Icon(CupertinoIcons.ellipsis),
     String overflowTooltip = 'More actions',
+    VoidCallback? onOverflowMenuOpened,
+    VoidCallback? onOverflowMenuClosed,
+    bool invokeAfterMenuClosed = false,
     ActionLayoutResolver resolver = const ActionLayoutResolver(),
     Brightness brightness = Brightness.light,
   }) => CupertinoApp(
@@ -113,6 +116,9 @@ void main() {
           resizeDuration: resizeDuration,
           overflowIcon: overflowIcon,
           overflowTooltip: overflowTooltip,
+          onOverflowMenuOpened: onOverflowMenuOpened,
+          onOverflowMenuClosed: onOverflowMenuClosed,
+          invokeAfterMenuClosed: invokeAfterMenuClosed,
           resolver: resolver,
         ),
       ),
@@ -132,11 +138,20 @@ void main() {
       onInvoke: (_) {},
       primaryCapacity: 0,
     );
+    final waitsForClose = CupertinoAdaptiveActions<String>.moreAction(
+      actions: actions,
+      onInvoke: (_) {},
+      primaryCapacity: 0,
+      invokeAfterMenuClosed: true,
+    );
 
     expect((generic.overflowIcon as Icon).icon, CupertinoIcons.square_grid_2x2);
     expect(generic.overflowTooltip, isEmpty);
     expect((more.overflowIcon as Icon).icon, CupertinoIcons.ellipsis);
     expect(more.overflowTooltip, 'More actions');
+    expect(generic.invokeAfterMenuClosed, isFalse);
+    expect(more.invokeAfterMenuClosed, isFalse);
+    expect(waitsForClose.invokeAfterMenuClosed, isTrue);
   });
 
   testWidgets('customizes every primary button through the default builder', (
@@ -698,6 +713,7 @@ void main() {
           actions: ActionCollection(roots: [menu]),
           onInvoke: invoked.add,
           actionIconBuilder: iconBuilder,
+          invokeAfterMenuClosed: true,
         ),
       );
       expect(find.byType(CupertinoFocusHalo), findsOneWidget);
@@ -708,6 +724,7 @@ void main() {
       expect(find.byType(CupertinoActionSheet), findsNothing);
       expect(find.text('recent'), findsOneWidget);
       await tester.tap(find.text('recent'));
+      expect(invoked, isEmpty);
       await tester.pumpAndSettle();
 
       expect(invoked, ['recent-command']);
@@ -855,6 +872,7 @@ void main() {
     await tester.tap(find.byIcon(CupertinoIcons.chevron_down));
     await tester.pumpAndSettle();
     await tester.tap(find.text('recent'));
+    expect(invoked, ['open-command']);
     await tester.pumpAndSettle();
 
     expect(invoked, ['open-command', 'recent-command']);
@@ -909,7 +927,6 @@ void main() {
         placement: ActionPlacement.overflowOnly,
       ),
     );
-
     await tester.pumpWidget(
       pumpTarget(
         actions: ActionCollection(roots: [primary]),
@@ -947,11 +964,12 @@ void main() {
         placement: ActionPlacement.overflowOnly,
       ),
     );
+    final invoked = <String>[];
 
     await tester.pumpWidget(
       pumpTarget(
         actions: ActionCollection(roots: [overflow]),
-        onInvoke: (_) {},
+        onInvoke: invoked.add,
         width: 44,
       ),
     );
@@ -981,13 +999,121 @@ void main() {
     await tester.tap(trigger);
     await tester.pumpAndSettle();
     expect(find.byType(CupertinoPopupSurface), findsNothing);
+    expect(invoked, isEmpty);
 
     await tester.tap(trigger);
     await tester.pumpAndSettle();
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
     expect(find.byType(CupertinoPopupSurface), findsNothing);
+    expect(invoked, isEmpty);
+
+    await tester.tap(trigger);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(CupertinoPopupSurface), findsNothing);
+    expect(invoked, isEmpty);
   });
+
+  testWidgets('overflow invocation waits for close and a post-frame boundary', (
+    tester,
+  ) async {
+    final save = action(
+      'save',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final events = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (payload) => events.add('invoked:$payload'),
+        width: 44,
+        onOverflowMenuOpened: () => events.add('opened'),
+        onOverflowMenuClosed: () => events.add('closed'),
+        invokeAfterMenuClosed: true,
+      ),
+    );
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+    expect(events, ['opened']);
+
+    await tester.tap(find.text('save'));
+    expect(events, ['opened']);
+    await tester.pumpAndSettle();
+
+    expect(events, ['opened', 'closed', 'invoked:save-command']);
+    expect(find.byType(CupertinoPopupSurface), findsNothing);
+  });
+
+  testWidgets('default overflow invocation runs next frame before close', (
+    tester,
+  ) async {
+    final save = action(
+      'save',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final events = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (payload) => events.add('invoked:$payload'),
+        width: 44,
+        onOverflowMenuOpened: () => events.add('opened'),
+        onOverflowMenuClosed: () => events.add('closed'),
+      ),
+    );
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('save'));
+    expect(events, ['opened']);
+    await tester.pump();
+
+    expect(events, ['opened', 'invoked:save-command']);
+    expect(find.byType(CupertinoPopupSurface), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    expect(events, ['opened', 'invoked:save-command', 'closed']);
+    expect(find.byType(CupertinoPopupSurface), findsNothing);
+  });
+
+  for (final invokeAfterMenuClosed in [false, true]) {
+    testWidgets('overflow invocation safely replaces a LayoutBuilder host with '
+        'invokeAfterMenuClosed: $invokeAfterMenuClosed', (tester) async {
+      final invoked = <String>[];
+      final replace = action(
+        'replace',
+        placementPolicy: ActionPlacementPolicy(
+          placement: ActionPlacement.overflowOnly,
+        ),
+      );
+
+      await tester.pumpWidget(
+        CupertinoApp(
+          home: _CupertinoInvocationReplacementHost(
+            actions: ActionCollection(roots: [replace]),
+            onInvoke: invoked.add,
+            invokeAfterMenuClosed: invokeAfterMenuClosed,
+          ),
+        ),
+      );
+      await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('replace'));
+      expect(invoked, isEmpty);
+      await tester.pumpAndSettle();
+
+      expect(find.text('replacement'), findsOneWidget);
+      expect(invoked, ['replace-command']);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('a rapid third overflow tap reopens a closing menu', (
     tester,
@@ -1277,6 +1403,7 @@ void main() {
           actions: ActionCollection(roots: [levelOne]),
           onInvoke: invoked.add,
           width: 44,
+          invokeAfterMenuClosed: true,
         ),
       );
       await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
@@ -1295,6 +1422,7 @@ void main() {
         lessThan(tester.getTopLeft(find.text('deep second')).dy),
       );
       await tester.tap(find.text('deep first'));
+      expect(invoked, isEmpty);
       await tester.pumpAndSettle();
       expect(find.byType(CupertinoPopupSurface), findsNothing);
       expect(invoked, ['deep first-command']);
@@ -1389,6 +1517,7 @@ void main() {
       lessThan(tester.getTopLeft(find.text('recent file')).dy),
     );
     await tester.tap(find.text('Open').last);
+    expect(invoked, isEmpty);
     await tester.pumpAndSettle();
     expect(invoked, ['open-command']);
     expect(find.byType(CupertinoPopupSurface), findsNothing);
@@ -1747,6 +1876,59 @@ void main() {
     expect(find.text('save'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+final class _CupertinoInvocationReplacementHost extends StatefulWidget {
+  const _CupertinoInvocationReplacementHost({
+    required this.actions,
+    required this.onInvoke,
+    required this.invokeAfterMenuClosed,
+  });
+
+  final ActionCollection<String> actions;
+  final ValueChanged<String> onInvoke;
+  final bool invokeAfterMenuClosed;
+
+  @override
+  State<_CupertinoInvocationReplacementHost> createState() =>
+      _CupertinoInvocationReplacementHostState();
+}
+
+final class _CupertinoInvocationReplacementHostState
+    extends State<_CupertinoInvocationReplacementHost> {
+  bool _replaced = false;
+
+  void _handleInvoke(String payload) {
+    widget.onInvoke(payload);
+    setState(() {
+      _replaced = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_replaced) {
+      return const CupertinoPageScaffold(
+        child: Center(child: Text('replacement')),
+      );
+    }
+
+    return CupertinoPageScaffold(
+      child: LayoutBuilder(
+        builder: (context, constraints) => Center(
+          child: CupertinoAdaptiveActions<String>.moreAction(
+            actions: widget.actions,
+            onInvoke: _handleInvoke,
+            primaryCapacity: 44,
+            maxPrimaryActions: 0,
+            invokeAfterMenuClosed: widget.invokeAfterMenuClosed,
+            fadeDuration: Duration.zero,
+            resizeDuration: Duration.zero,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 final class _RecordingPlacementDelegate implements ActionPlacementDelegate {
