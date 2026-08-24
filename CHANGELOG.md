@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Added per-action Material and Cupertino primary presentations with
+  resolver-aware mixed icon-only and icon-plus-label layouts.
+
 ## 0.2.0
 
 > **Breaking change:** `AdaptiveAction.children` changed from
@@ -8,8 +13,6 @@
 
 - Added configurable dividers for nested menus and top-level actions across
   Material and Cupertino.
-- Added per-action Material and Cupertino primary presentations with
-  resolver-aware mixed icon-only and icon-plus-label layouts.
 
 ## 0.1.2
 
