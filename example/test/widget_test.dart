@@ -440,11 +440,11 @@ void main() {
 
     expect(
       tester
-          .widget<DropdownButton<MaterialActionPresentation>>(
+          .widget<DropdownButton<DemoPresentation>>(
             find.byKey(materialPresentationSelectorKey),
           )
           .value,
-      isNull,
+      DemoPresentation.automatic,
     );
     expect(
       tester
@@ -543,6 +543,103 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets(
+    'mixed presentation uses per-action callbacks on both renderers',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1200, 800);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(const AdaptiveActionsExampleApp());
+      await tester.pumpAndSettle();
+      final scrollable = find
+          .descendant(
+            of: find.byKey(previewListKey),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+
+      await tester.scrollUntilVisible(
+        find.byKey(materialPresentationSelectorKey),
+        300,
+        scrollable: scrollable,
+      );
+      await tester.ensureVisible(find.byKey(materialPresentationSelectorKey));
+      await tester.tap(find.byKey(materialPresentationSelectorKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mixed per action').last);
+      await tester.pumpAndSettle();
+
+      final materialRenderers = tester
+          .widgetList<MaterialAdaptiveActions<DemoCommand>>(
+            find.byType(MaterialAdaptiveActions<DemoCommand>),
+          );
+      expect(
+        materialRenderers.every(
+          (widget) =>
+              widget.presentationForAction != null &&
+              widget.presentationOverride == null,
+        ),
+        isTrue,
+      );
+      _expectMixedPrimaryLabels(tester);
+
+      await invokeDemoControl(
+        tester,
+        label: 'Switch to Apple',
+        useCupertino: false,
+      );
+      final appleScrollable = find
+          .descendant(
+            of: find.byKey(previewListKey),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.byKey(cupertinoPresentationSelectorKey),
+        300,
+        scrollable: appleScrollable,
+      );
+      await Scrollable.ensureVisible(
+        tester.element(find.byKey(cupertinoPresentationSelectorKey)),
+        alignment: 0.5,
+      );
+      await tester.tap(find.byKey(cupertinoPresentationSelectorKey));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mixed per action').last);
+      await tester.pumpAndSettle();
+
+      final cupertinoRenderers = tester
+          .widgetList<CupertinoAdaptiveActions<DemoCommand>>(
+            find.byType(CupertinoAdaptiveActions<DemoCommand>),
+          );
+      expect(
+        cupertinoRenderers.every(
+          (widget) =>
+              widget.presentationForAction != null &&
+              widget.presentationOverride == null,
+        ),
+        isTrue,
+      );
+      _expectMixedPrimaryLabels(tester);
+
+      await invokeDemoControl(
+        tester,
+        label: 'Switch to Material',
+        useCupertino: true,
+      );
+      expect(
+        tester
+            .widgetList<MaterialAdaptiveActions<DemoCommand>>(
+              find.byType(MaterialAdaptiveActions<DemoCommand>),
+            )
+            .every((widget) => widget.presentationForAction != null),
+        isTrue,
+      );
+    },
+  );
 
   testWidgets('parent height constrains both adaptive action regions', (
     tester,
@@ -1072,4 +1169,28 @@ void main() {
     expect(find.text('Desktop MenuAnchor'), findsNothing);
     expect(find.text('Desktop action menu'), findsNothing);
   });
+}
+
+void _expectMixedPrimaryLabels(WidgetTester tester) {
+  final actionRegion = find.byKey(appBarActionsKey);
+  expect(
+    find.descendant(of: actionRegion, matching: find.text('Save')),
+    findsNothing,
+  );
+  expect(
+    find.descendant(of: actionRegion, matching: find.text('Open')),
+    findsNothing,
+  );
+  expect(
+    find.descendant(of: actionRegion, matching: find.text('Share')),
+    findsOneWidget,
+  );
+  expect(
+    find.descendant(of: actionRegion, matching: find.text('Delete')),
+    findsNothing,
+  );
+  expect(
+    find.descendant(of: actionRegion, matching: find.text('Help')),
+    findsOneWidget,
+  );
 }

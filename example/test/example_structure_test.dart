@@ -21,6 +21,7 @@ void main() {
 
     expect(mainSource, contains('package:adaptive_actions/material.dart'));
     expect(mainSource, contains('MaterialAdaptiveActions<DemoCommand>'));
+    expect(mainSource, contains('presentationForAction:'));
     expect(
       mainSource,
       isNot(contains('package:adaptive_actions/cupertino.dart')),
@@ -33,6 +34,7 @@ void main() {
       contains('package:adaptive_actions/cupertino.dart'),
     );
     expect(cupertinoSource, contains('CupertinoAdaptiveActions<T>'));
+    expect(cupertinoSource, contains('presentationForAction:'));
     expect(
       settingsSource,
       contains('final class DemoActionSettings extends StatelessWidget'),

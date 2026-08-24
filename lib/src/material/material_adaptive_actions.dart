@@ -71,6 +71,16 @@ enum MaterialActionPresentation {
   iconOnly,
 }
 
+/// Selects a Material primary-button presentation for one root [action].
+///
+/// Return `null` to fall back to [MaterialAdaptiveActions.presentationOverride]
+/// or, when that is also `null`, to automatic layout selection.
+typedef MaterialActionPresentationCallback<T extends Object> =
+    MaterialActionPresentation? Function(
+      BuildContext context,
+      AdaptiveAction<T> action,
+    );
+
 /// Visual and layout configuration used by [MaterialAdaptiveActions].
 ///
 /// These values describe renderer-owned Material geometry. They affect both
@@ -270,6 +280,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.overflowButtonBuilder,
     required this.overflowIcon,
     this.overflowTooltip = '',
+    this.presentationForAction,
     this.presentationOverride,
     this.style = const MaterialAdaptiveActionsStyle(),
     this.menuAnimationEnabled = true,
@@ -295,6 +306,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.iconBuilder,
     this.actionButtonBuilder,
     this.overflowButtonBuilder,
+    this.presentationForAction,
     this.presentationOverride,
     this.style = const MaterialAdaptiveActionsStyle(),
     this.overflowIcon = const Icon(Icons.more_vert),
@@ -380,6 +392,13 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
 
   /// Overrides the overflow trigger without replacing its anchored menu.
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
+
+  /// Selects a primary-button presentation independently for each root action.
+  ///
+  /// A non-null result overrides [presentationOverride] for that action. A
+  /// `null` result falls back to [presentationOverride], then to automatic
+  /// layout selection when the global override is also `null`.
+  final MaterialActionPresentationCallback<T>? presentationForAction;
 
   /// Forces one Material primary-button presentation for every root action.
   ///
@@ -504,7 +523,9 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
             action: action,
             icon: iconBuilder?.call(context, action),
             labelWidth: _labelWidth(context, action.metadata.label),
-            presentationOverride: presentationOverride,
+            presentationOverride:
+                presentationForAction?.call(context, action) ??
+                presentationOverride,
             style: style,
           ),
       };

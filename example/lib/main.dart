@@ -196,7 +196,7 @@ final class _AdaptiveActionsDemoPageState
           actionWidth: effectiveActionWidth,
           actionHeight: _parentActionHeight,
           maxPrimaryActions: _maxPrimaryActions,
-          presentationOverride: _presentations.cupertino,
+          presentation: _presentations.cupertino,
           fadeDuration: _fadeDuration,
           resizeDuration: _resizeDuration,
           brightness: widget.brightness,
@@ -286,10 +286,16 @@ final class _AdaptiveActionsDemoPageState
             renderer: _renderer,
             materialPresentation: _presentations.material,
             cupertinoPresentation: _presentations.cupertino,
-            onMaterialChanged: (presentation) =>
-                setState(() => _presentations.material = presentation),
-            onCupertinoChanged: (presentation) =>
-                setState(() => _presentations.cupertino = presentation),
+            onMaterialChanged: (presentation) {
+              if (presentation != null) {
+                setState(() => _presentations.material = presentation);
+              }
+            },
+            onCupertinoChanged: (presentation) {
+              if (presentation != null) {
+                setState(() => _presentations.cupertino = presentation);
+              }
+            },
           ),
         ),
         DemoSection(
@@ -419,7 +425,12 @@ final class _AdaptiveActionsDemoPageState
       overflowOrderOverride: _overflowOrderOverride,
       primaryCapacity: actionWidth,
       maxPrimaryActions: _maxPrimaryActions,
-      presentationOverride: _presentations.material,
+      presentationForAction: _presentations.material == DemoPresentation.mixed
+          ? _materialMixedPresentationForAction
+          : null,
+      presentationOverride: _materialPresentationOverride(
+        _presentations.material,
+      ),
       onInvoke: _onInvoke,
       iconBuilder: _materialIconBuilder,
       actionButtonBuilder: _materialActionButtonBuilder,
@@ -438,7 +449,7 @@ final class _AdaptiveActionsDemoPageState
       overflowOrderOverride: _overflowOrderOverride,
       actionWidth: actionWidth,
       maxPrimaryActions: _maxPrimaryActions,
-      presentationOverride: _presentations.cupertino,
+      presentation: _presentations.cupertino,
       fadeDuration: _fadeDuration,
       resizeDuration: _resizeDuration,
       onInvoke: _onInvoke,
@@ -677,6 +688,23 @@ Widget? _materialIconBuilder(
   'theme-dark' => const Icon(Icons.dark_mode_outlined),
   'theme-light' => const Icon(Icons.light_mode_outlined),
   'text-direction' => const Icon(Icons.format_textdirection_l_to_r),
+  _ => null,
+};
+
+MaterialActionPresentation? _materialPresentationOverride(
+  DemoPresentation presentation,
+) => switch (presentation) {
+  DemoPresentation.extended => MaterialActionPresentation.extended,
+  DemoPresentation.iconOnly => MaterialActionPresentation.iconOnly,
+  DemoPresentation.automatic || DemoPresentation.mixed => null,
+};
+
+MaterialActionPresentation? _materialMixedPresentationForAction(
+  BuildContext context,
+  AdaptiveAction<DemoCommand> action,
+) => switch (action.id.value) {
+  'save' || 'open' || 'delete' => MaterialActionPresentation.iconOnly,
+  'share' || 'help' => MaterialActionPresentation.extended,
   _ => null,
 };
 

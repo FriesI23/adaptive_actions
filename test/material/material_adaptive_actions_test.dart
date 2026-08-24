@@ -67,6 +67,7 @@ void main() {
     MaterialActionIconBuilder<String>? iconBuilder,
     MaterialActionButtonBuilder<String>? actionButtonBuilder,
     MaterialOverflowButtonBuilder? overflowButtonBuilder,
+    MaterialActionPresentationCallback<String>? presentationForAction,
     MaterialActionPresentation? presentationOverride,
     MaterialAdaptiveActionsStyle style = const MaterialAdaptiveActionsStyle(),
     ActionLayoutResolver resolver = const ActionLayoutResolver(),
@@ -87,6 +88,7 @@ void main() {
         iconBuilder: iconBuilder,
         actionButtonBuilder: actionButtonBuilder,
         overflowButtonBuilder: overflowButtonBuilder,
+        presentationForAction: presentationForAction,
         presentationOverride: presentationOverride,
         style: style,
         resolver: resolver,
@@ -105,6 +107,9 @@ void main() {
         'save' => const Icon(Icons.save),
         'more' => const Icon(Icons.more_horiz),
         'open' => const Icon(Icons.folder_open),
+        'share' => const Icon(Icons.share),
+        'delete' => const Icon(Icons.delete),
+        'help' => const Icon(Icons.help_outline),
         _ => null,
       };
 
@@ -347,6 +352,118 @@ void main() {
         actions: ActionCollection(roots: [share]),
         onInvoke: (_) {},
         presentationOverride: MaterialActionPresentation.iconOnly,
+      ),
+    );
+
+    expect(find.text('Share document'), findsOneWidget);
+  });
+
+  testWidgets('supports per-action mixed primary presentations', (
+    tester,
+  ) async {
+    final actions = [
+      action('save', label: 'Save', iconKey: 'save'),
+      action('open', label: 'Open', iconKey: 'open'),
+      action('share', label: 'Share', iconKey: 'share'),
+      action('delete', label: 'Delete', iconKey: 'delete'),
+      action('help', label: 'Help', iconKey: 'help'),
+    ];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: actions),
+        onInvoke: (_) {},
+        width: 500,
+        iconBuilder: iconBuilder,
+        presentationForAction: (context, action) => switch (action.id.value) {
+          'share' || 'help' => MaterialActionPresentation.extended,
+          _ => MaterialActionPresentation.iconOnly,
+        },
+      ),
+    );
+
+    expect(find.text('Save'), findsNothing);
+    expect(find.text('Open'), findsNothing);
+    expect(find.text('Share'), findsOneWidget);
+    expect(find.text('Delete'), findsNothing);
+    expect(find.text('Help'), findsOneWidget);
+    for (final icon in [
+      Icons.save,
+      Icons.folder_open,
+      Icons.share,
+      Icons.delete,
+      Icons.help_outline,
+    ]) {
+      expect(find.byIcon(icon), findsOneWidget);
+    }
+  });
+
+  testWidgets('per-action presentation falls back to global then automatic', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save', iconKey: 'save');
+    final open = action('open', label: 'Open', iconKey: 'open');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save, open]),
+        onInvoke: (_) {},
+        width: 300,
+        iconBuilder: iconBuilder,
+        presentationForAction: (context, action) =>
+            action.id == save.id ? MaterialActionPresentation.extended : null,
+        presentationOverride: MaterialActionPresentation.iconOnly,
+      ),
+    );
+
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Open'), findsNothing);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 300,
+        iconBuilder: iconBuilder,
+        presentationForAction: (context, action) => null,
+      ),
+    );
+
+    expect(find.text('Save'), findsOneWidget);
+  });
+
+  testWidgets(
+    'forced per-action extended presentation overflows before downgrade',
+    (tester) async {
+      final save = action('save', label: 'Save document', iconKey: 'save');
+
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: ActionCollection(roots: [save]),
+          onInvoke: (_) {},
+          width: 48,
+          iconBuilder: iconBuilder,
+          presentationForAction: (context, action) =>
+              MaterialActionPresentation.extended,
+        ),
+      );
+
+      expect(find.byIcon(Icons.save), findsNothing);
+      expect(find.byTooltip('More actions'), findsOneWidget);
+    },
+  );
+
+  testWidgets('per-action icon-only falls back when an action has no icon', (
+    tester,
+  ) async {
+    final share = action('share', label: 'Share document');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [share]),
+        onInvoke: (_) {},
+        presentationForAction: (context, action) =>
+            MaterialActionPresentation.iconOnly,
       ),
     );
 

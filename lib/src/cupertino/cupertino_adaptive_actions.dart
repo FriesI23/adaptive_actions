@@ -106,6 +106,17 @@ enum CupertinoActionPresentation {
   iconOnly,
 }
 
+/// Selects a Cupertino primary-button presentation for one root [action].
+///
+/// Return `null` to fall back to
+/// [CupertinoAdaptiveActions.presentationOverride] or, when that is also
+/// `null`, to automatic layout selection.
+typedef CupertinoActionPresentationCallback<T extends Object> =
+    CupertinoActionPresentation? Function(
+      BuildContext context,
+      AdaptiveAction<T> action,
+    );
+
 /// Visual and layout configuration used by [CupertinoAdaptiveActions].
 ///
 /// These values describe renderer-owned Cupertino geometry. They affect both
@@ -305,6 +316,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.onOverflowMenuClosed,
     required this.overflowIcon,
     this.overflowTooltip = '',
+    this.presentationForAction,
     this.presentationOverride,
     this.style = const CupertinoAdaptiveActionsStyle(),
     this.fadeDuration = const Duration(milliseconds: 200),
@@ -331,6 +343,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.overflowButtonBuilder,
     this.onOverflowMenuOpened,
     this.onOverflowMenuClosed,
+    this.presentationForAction,
     this.presentationOverride,
     this.style = const CupertinoAdaptiveActionsStyle(),
     this.overflowIcon = const Icon(CupertinoIcons.ellipsis),
@@ -422,6 +435,13 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
 
   /// Called after the overflow menu finishes closing.
   final VoidCallback? onOverflowMenuClosed;
+
+  /// Selects a primary-button presentation independently for each root action.
+  ///
+  /// A non-null result overrides [presentationOverride] for that action. A
+  /// `null` result falls back to [presentationOverride], then to automatic
+  /// layout selection when the global override is also `null`.
+  final CupertinoActionPresentationCallback<T>? presentationForAction;
 
   /// Forces one Cupertino primary presentation for every root action.
   ///
@@ -540,7 +560,9 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
         action: action,
         icon: iconBuilder?.call(context, action),
         labelWidth: _labelWidth(context, action.metadata.label),
-        presentationOverride: presentationOverride,
+        presentationOverride:
+            presentationForAction?.call(context, action) ??
+            presentationOverride,
         style: style,
       ),
   };

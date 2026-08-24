@@ -64,6 +64,9 @@ void main() {
         'save' => const Icon(CupertinoIcons.floppy_disk),
         'open' => const Icon(CupertinoIcons.folder_open),
         'more' => const Icon(CupertinoIcons.ellipsis),
+        'share' => const Icon(CupertinoIcons.share),
+        'delete' => const Icon(CupertinoIcons.delete),
+        'help' => const Icon(CupertinoIcons.question_circle),
         _ => null,
       };
 
@@ -76,6 +79,7 @@ void main() {
     CupertinoActionIconBuilder<String>? actionIconBuilder,
     CupertinoActionButtonBuilder<String>? actionButtonBuilder,
     CupertinoOverflowButtonBuilder? overflowButtonBuilder,
+    CupertinoActionPresentationCallback<String>? presentationForAction,
     CupertinoActionPresentation? presentationOverride,
     CupertinoAdaptiveActionsStyle style = const CupertinoAdaptiveActionsStyle(),
     int? maxPrimaryActions,
@@ -101,6 +105,7 @@ void main() {
           iconBuilder: actionIconBuilder,
           actionButtonBuilder: actionButtonBuilder,
           overflowButtonBuilder: overflowButtonBuilder,
+          presentationForAction: presentationForAction,
           presentationOverride: presentationOverride,
           style: style,
           maxPrimaryActions: maxPrimaryActions,
@@ -372,6 +377,118 @@ void main() {
         presentationOverride: CupertinoActionPresentation.iconOnly,
       ),
     );
+    expect(find.text('Share document'), findsOneWidget);
+  });
+
+  testWidgets('supports per-action mixed primary presentations', (
+    tester,
+  ) async {
+    final actions = [
+      action('save', label: 'Save', iconKey: 'save'),
+      action('open', label: 'Open', iconKey: 'open'),
+      action('share', label: 'Share', iconKey: 'share'),
+      action('delete', label: 'Delete', iconKey: 'delete'),
+      action('help', label: 'Help', iconKey: 'help'),
+    ];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: actions),
+        onInvoke: (_) {},
+        width: 500,
+        actionIconBuilder: iconBuilder,
+        presentationForAction: (context, action) => switch (action.id.value) {
+          'share' || 'help' => CupertinoActionPresentation.extended,
+          _ => CupertinoActionPresentation.iconOnly,
+        },
+      ),
+    );
+
+    expect(find.text('Save'), findsNothing);
+    expect(find.text('Open'), findsNothing);
+    expect(find.text('Share'), findsOneWidget);
+    expect(find.text('Delete'), findsNothing);
+    expect(find.text('Help'), findsOneWidget);
+    for (final icon in [
+      CupertinoIcons.floppy_disk,
+      CupertinoIcons.folder_open,
+      CupertinoIcons.share,
+      CupertinoIcons.delete,
+      CupertinoIcons.question_circle,
+    ]) {
+      expect(find.byIcon(icon), findsOneWidget);
+    }
+  });
+
+  testWidgets('per-action presentation falls back to global then automatic', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save', iconKey: 'save');
+    final open = action('open', label: 'Open', iconKey: 'open');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save, open]),
+        onInvoke: (_) {},
+        width: 300,
+        actionIconBuilder: iconBuilder,
+        presentationForAction: (context, action) =>
+            action.id == save.id ? CupertinoActionPresentation.extended : null,
+        presentationOverride: CupertinoActionPresentation.iconOnly,
+      ),
+    );
+
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Open'), findsNothing);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 300,
+        actionIconBuilder: iconBuilder,
+        presentationForAction: (context, action) => null,
+      ),
+    );
+
+    expect(find.text('Save'), findsOneWidget);
+  });
+
+  testWidgets(
+    'forced per-action extended presentation overflows before downgrade',
+    (tester) async {
+      final save = action('save', label: 'Save document', iconKey: 'save');
+
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: ActionCollection(roots: [save]),
+          onInvoke: (_) {},
+          width: 44,
+          actionIconBuilder: iconBuilder,
+          presentationForAction: (context, action) =>
+              CupertinoActionPresentation.extended,
+        ),
+      );
+
+      expect(find.byIcon(CupertinoIcons.floppy_disk), findsNothing);
+      expect(find.byIcon(CupertinoIcons.ellipsis), findsOneWidget);
+    },
+  );
+
+  testWidgets('per-action icon-only falls back when an action has no icon', (
+    tester,
+  ) async {
+    final share = action('share', label: 'Share document');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [share]),
+        onInvoke: (_) {},
+        presentationForAction: (context, action) =>
+            CupertinoActionPresentation.iconOnly,
+      ),
+    );
+
     expect(find.text('Share document'), findsOneWidget);
   });
 

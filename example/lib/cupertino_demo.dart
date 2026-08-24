@@ -20,7 +20,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
     required this.actionWidth,
     required this.actionHeight,
     required this.maxPrimaryActions,
-    required this.presentationOverride,
+    required this.presentation,
     required this.fadeDuration,
     required this.resizeDuration,
     required this.brightness,
@@ -37,7 +37,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
   final double actionWidth;
   final double actionHeight;
   final int? maxPrimaryActions;
-  final CupertinoActionPresentation? presentationOverride;
+  final DemoPresentation presentation;
   final Duration fadeDuration;
   final Duration resizeDuration;
   final Brightness brightness;
@@ -77,7 +77,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
                         overflowOrderOverride: overflowOrderOverride,
                         actionWidth: actionWidth,
                         maxPrimaryActions: maxPrimaryActions,
-                        presentationOverride: presentationOverride,
+                        presentation: presentation,
                         fadeDuration: fadeDuration,
                         resizeDuration: resizeDuration,
                         onInvoke: onInvoke,
@@ -104,7 +104,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
     required this.overflowOrderOverride,
     required this.actionWidth,
     required this.maxPrimaryActions,
-    required this.presentationOverride,
+    required this.presentation,
     required this.fadeDuration,
     required this.resizeDuration,
     required this.onInvoke,
@@ -117,7 +117,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
   final Iterable<ActionId> overflowOrderOverride;
   final double actionWidth;
   final int? maxPrimaryActions;
-  final CupertinoActionPresentation? presentationOverride;
+  final DemoPresentation presentation;
   final Duration fadeDuration;
   final Duration resizeDuration;
   final ValueChanged<T> onInvoke;
@@ -131,7 +131,10 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
     overflowOrderOverride: overflowOrderOverride,
     primaryCapacity: actionWidth,
     maxPrimaryActions: maxPrimaryActions,
-    presentationOverride: presentationOverride,
+    presentationForAction: presentation == DemoPresentation.mixed
+        ? _cupertinoMixedPresentationForAction
+        : null,
+    presentationOverride: _cupertinoPresentationOverride(presentation),
     onInvoke: onInvoke,
     iconBuilder: _cupertinoIconBuilder,
     actionButtonBuilder: _cupertinoActionButtonBuilder,
@@ -143,6 +146,22 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
     resizeDuration: resizeDuration,
   );
 }
+
+CupertinoActionPresentation? _cupertinoPresentationOverride(
+  DemoPresentation presentation,
+) => switch (presentation) {
+  DemoPresentation.extended => CupertinoActionPresentation.extended,
+  DemoPresentation.iconOnly => CupertinoActionPresentation.iconOnly,
+  DemoPresentation.automatic || DemoPresentation.mixed => null,
+};
+
+CupertinoActionPresentation? _cupertinoMixedPresentationForAction<
+  T extends Object
+>(BuildContext context, AdaptiveAction<T> action) => switch (action.id.value) {
+  'save' || 'open' || 'delete' => CupertinoActionPresentation.iconOnly,
+  'share' || 'help' => CupertinoActionPresentation.extended,
+  _ => null,
+};
 
 Widget _cupertinoActionButtonBuilder<T extends Object>(
   BuildContext context,

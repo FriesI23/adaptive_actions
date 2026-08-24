@@ -23,6 +23,10 @@ void main() {
       VoidCallback onPressed,
       CupertinoOverflowButtonDefaultBuilder defaultBuilder,
     ) => defaultBuilder(context, onPressed);
+    CupertinoActionPresentation? presentationForAction(
+      BuildContext context,
+      AdaptiveAction<String> action,
+    ) => CupertinoActionPresentation.extended;
 
     await tester.pumpWidget(
       CupertinoApp(
@@ -33,6 +37,7 @@ void main() {
             onInvoke: invoked.add,
             actionButtonBuilder: actionButtonBuilder,
             overflowButtonBuilder: overflowButtonBuilder,
+            presentationForAction: presentationForAction,
             fadeDuration: Duration.zero,
             resizeDuration: Duration.zero,
           ),

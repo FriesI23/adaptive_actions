@@ -23,6 +23,10 @@ void main() {
       VoidCallback onPressed,
       MaterialOverflowButtonDefaultBuilder defaultBuilder,
     ) => defaultBuilder(context, onPressed);
+    MaterialActionPresentation? presentationForAction(
+      BuildContext context,
+      AdaptiveAction<String> action,
+    ) => MaterialActionPresentation.extended;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -33,6 +37,7 @@ void main() {
             onInvoke: invoked.add,
             actionButtonBuilder: actionButtonBuilder,
             overflowButtonBuilder: overflowButtonBuilder,
+            presentationForAction: presentationForAction,
             fadeDuration: Duration.zero,
             resizeDuration: Duration.zero,
           ),

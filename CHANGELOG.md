@@ -8,6 +8,8 @@
 
 - Added configurable dividers for nested menus and top-level actions across
   Material and Cupertino.
+- Added per-action Material and Cupertino primary presentations with
+  resolver-aware mixed icon-only and icon-plus-label layouts.
 
 ## 0.1.2
 

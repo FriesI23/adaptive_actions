@@ -1,7 +1,4 @@
 import 'package:adaptive_actions/core.dart';
-import 'package:adaptive_actions/cupertino.dart'
-    show CupertinoActionPresentation;
-import 'package:adaptive_actions/material.dart' show MaterialActionPresentation;
 import 'package:flutter/foundation.dart';
 
 const titleAlignmentToggleKey = ValueKey('title-alignment-toggle');
@@ -48,8 +45,19 @@ DemoRenderer defaultDemoRenderer(TargetPlatform platform) => switch (platform) {
 };
 
 final class DemoPresentationValues {
-  MaterialActionPresentation? material;
-  CupertinoActionPresentation? cupertino;
+  DemoPresentation material = DemoPresentation.automatic;
+  DemoPresentation cupertino = DemoPresentation.automatic;
+}
+
+enum DemoPresentation { automatic, extended, iconOnly, mixed }
+
+extension DemoPresentationLabel on DemoPresentation {
+  String get label => switch (this) {
+    DemoPresentation.automatic => 'Automatic',
+    DemoPresentation.extended => 'Force icon + label',
+    DemoPresentation.iconOnly => 'Force icon only',
+    DemoPresentation.mixed => 'Mixed per action',
+  };
 }
 
 extension DemoRendererValue on DemoRenderer {
@@ -101,19 +109,5 @@ extension DemoDividerVisibilityValue on DemoDividerVisibility {
     DemoDividerVisibility.menuOnly => 'Menu only (false / true)',
     DemoDividerVisibility.primaryOnly => 'Primary only (true / false)',
     DemoDividerVisibility.hidden => 'Hidden (false / false)',
-  };
-}
-
-extension MaterialActionPresentationLabel on MaterialActionPresentation {
-  String get demoLabel => switch (this) {
-    MaterialActionPresentation.extended => 'Force icon + label',
-    MaterialActionPresentation.iconOnly => 'Force icon only',
-  };
-}
-
-extension CupertinoActionPresentationLabel on CupertinoActionPresentation {
-  String get demoLabel => switch (this) {
-    CupertinoActionPresentation.extended => 'Force icon + label',
-    CupertinoActionPresentation.iconOnly => 'Force icon only',
   };
 }

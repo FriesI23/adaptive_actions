@@ -1,6 +1,3 @@
-import 'package:adaptive_actions/cupertino.dart'
-    show CupertinoActionPresentation;
-import 'package:adaptive_actions/material.dart' show MaterialActionPresentation;
 import 'package:flutter/cupertino.dart' as cupertino;
 import 'package:flutter/material.dart';
 
@@ -317,32 +314,29 @@ final class DemoPresentationSettings extends StatelessWidget {
   });
 
   final DemoRenderer renderer;
-  final MaterialActionPresentation? materialPresentation;
-  final CupertinoActionPresentation? cupertinoPresentation;
-  final ValueChanged<MaterialActionPresentation?> onMaterialChanged;
-  final ValueChanged<CupertinoActionPresentation?> onCupertinoChanged;
+  final DemoPresentation materialPresentation;
+  final DemoPresentation cupertinoPresentation;
+  final ValueChanged<DemoPresentation?> onMaterialChanged;
+  final ValueChanged<DemoPresentation?> onCupertinoChanged;
 
   @override
   Widget build(BuildContext context) => switch (renderer) {
-    DemoRenderer.material => DropdownButton<MaterialActionPresentation>(
+    DemoRenderer.material => DropdownButton<DemoPresentation>(
       key: materialPresentationSelectorKey,
       value: materialPresentation,
-      hint: const Text('Automatic'),
       isExpanded: true,
       items: [
-        const DropdownMenuItem(value: null, child: Text('Automatic')),
-        for (final value in MaterialActionPresentation.values)
-          DropdownMenuItem(value: value, child: Text(value.demoLabel)),
+        for (final value in DemoPresentation.values)
+          DropdownMenuItem(value: value, child: Text(value.label)),
       ],
       onChanged: onMaterialChanged,
     ),
-    DemoRenderer.apple => _CupertinoSelectionField<CupertinoActionPresentation>(
+    DemoRenderer.apple => _CupertinoSelectionField<DemoPresentation>(
       key: cupertinoPresentationSelectorKey,
       title: 'Primary action presentation',
       value: cupertinoPresentation,
-      nullLabel: 'Automatic',
-      options: CupertinoActionPresentation.values,
-      labelOf: (value) => value.demoLabel,
+      options: DemoPresentation.values,
+      labelOf: (value) => value.label,
       onChanged: onCupertinoChanged,
     ),
   };
