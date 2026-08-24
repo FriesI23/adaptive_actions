@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.2
+
+- Deferred Cupertino menu action callbacks to at least the next frame so they
+  can safely replace their host widget tree.
+- Added `invokeAfterMenuClosed` to optionally wait for the root Cupertino menu
+  to finish closing before invoking the selected action.
+- Added an adaptive menu-to-dialog example and regression coverage for
+  Cupertino and Material host replacement.
+
 ## 0.2.1
 
 - Added per-action Material and Cupertino primary presentations with

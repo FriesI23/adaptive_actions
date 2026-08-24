@@ -1,6 +1,6 @@
 name: adaptive_actions
 description: Adaptive action placement with Material and Cupertino renderers for Flutter.
-version: 0.2.1
+version: 0.2.2
 homepage: https://github.com/FriesI23/adaptive_actions
 repository: https://github.com/FriesI23/adaptive_actions
 issue_tracker: https://github.com/FriesI23/adaptive_actions/issues
