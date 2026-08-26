@@ -22,6 +22,8 @@ void main() {
     expect(mainSource, contains('package:adaptive_actions/material.dart'));
     expect(mainSource, contains('MaterialAdaptiveActions<DemoCommand>'));
     expect(mainSource, contains('presentationForAction:'));
+    expect(mainSource, contains('distribution:'));
+    expect(mainSource, contains('layoutDelegate:'));
     expect(
       mainSource,
       isNot(contains('package:adaptive_actions/cupertino.dart')),
@@ -35,6 +37,8 @@ void main() {
     );
     expect(cupertinoSource, contains('CupertinoAdaptiveActions<T>'));
     expect(cupertinoSource, contains('presentationForAction:'));
+    expect(cupertinoSource, contains('distribution:'));
+    expect(cupertinoSource, contains('layoutDelegate:'));
     expect(
       settingsSource,
       contains('final class DemoActionSettings extends StatelessWidget'),
@@ -47,6 +51,7 @@ void main() {
       settingsSource,
       contains('final class DemoPresentationSettings extends StatelessWidget'),
     );
+    expect(settingsSource, contains('actionRegionLayoutSelectorKey'));
   });
 
   test('uses public package APIs and keeps all six platform runners', () {

@@ -171,6 +171,16 @@ void main() {
     expect(find.text('Overflow:'), findsOneWidget);
     expect(find.text('Hidden:'), findsOneWidget);
     expect(find.text('Diagnostics:'), findsOneWidget);
+    expect(find.text('Layout:'), findsOneWidget);
+    expect(find.text('compact'), findsNWidgets(2));
+    expect(find.text('Distribution:'), findsOneWidget);
+    expect(find.text('Direction:'), findsOneWidget);
+    expect(find.text('ltr'), findsOneWidget);
+    expect(find.text('Toolbar alignment:'), findsOneWidget);
+    expect(find.text('end, right'), findsOneWidget);
+    expect(find.text('Preview alignment:'), findsOneWidget);
+    expect(find.text('Plan alignment:'), findsOneWidget);
+    expect(find.text('start, left'), findsNWidgets(2));
   });
 
   testWidgets('settings rebuild the preview without persistence', (
@@ -238,6 +248,124 @@ void main() {
           .value,
       isNull,
     );
+  });
+
+  testWidgets('layout selector demonstrates built-in and inserted gap modes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const AdaptiveActionsExampleApp());
+    await tester.pumpAndSettle();
+
+    final selector = find.byKey(actionRegionLayoutSelectorKey);
+    final dropdown = tester.widget<DropdownButton<DemoActionRegionLayout>>(
+      selector,
+    );
+    expect(dropdown.items, hasLength(6));
+    expect(
+      dropdown.items!.map((item) => (item.child as Text).data),
+      containsAll([
+        'Expanded gap after second slot',
+        'Fixed 48 px gap after second slot',
+      ]),
+    );
+
+    dropdown.onChanged!(DemoActionRegionLayout.spaceEvenly);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widgetList<MaterialAdaptiveActions<DemoCommand>>(
+            find.byType(MaterialAdaptiveActions<DemoCommand>),
+          )
+          .every(
+            (widget) =>
+                widget.distribution ==
+                    ActionRegionMainAxisDistribution.spaceEvenly &&
+                widget.layoutDelegate == null,
+          ),
+      isTrue,
+    );
+
+    tester.widget<DropdownButton<DemoActionRegionLayout>>(selector).onChanged!(
+      DemoActionRegionLayout.insertedFixedGap,
+    );
+    await tester.pumpAndSettle();
+
+    tester.widget<DropdownButton<DemoActionRegionLayout>>(selector).onChanged!(
+      DemoActionRegionLayout.insertedExpandedGap,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widgetList<MaterialAdaptiveActions<DemoCommand>>(
+            find.byType(MaterialAdaptiveActions<DemoCommand>),
+          )
+          .every(
+            (widget) =>
+                widget.distribution ==
+                    ActionRegionMainAxisDistribution.compact &&
+                widget.layoutDelegate != null,
+          ),
+      isTrue,
+    );
+
+    await invokeDemoControl(
+      tester,
+      label: 'Switch to Apple',
+      useCupertino: false,
+    );
+    expect(
+      tester
+          .widgetList<CupertinoAdaptiveActions<DemoCommand>>(
+            find.byType(CupertinoAdaptiveActions<DemoCommand>),
+          )
+          .every(
+            (widget) =>
+                widget.distribution ==
+                    ActionRegionMainAxisDistribution.compact &&
+                widget.layoutDelegate != null,
+          ),
+      isTrue,
+    );
+
+    final expandedWidth = tester.getSize(find.byKey(appBarActionsKey)).width;
+    final appleScrollable = find
+        .descendant(
+          of: find.byKey(previewListKey),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(actionRegionLayoutSelectorKey),
+      300,
+      scrollable: appleScrollable,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(actionRegionLayoutSelectorKey)),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(actionRegionLayoutSelectorKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Compact').last);
+    await tester.pumpAndSettle();
+
+    final compactWidth = tester.getSize(find.byKey(appBarActionsKey)).width;
+    expect(expandedWidth, greaterThan(compactWidth));
+
+    await tester.tap(find.byKey(actionRegionLayoutSelectorKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Space between').last);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(appBarActionsKey)).width,
+      greaterThan(compactWidth),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Resolved layout'),
+      300,
+      scrollable: appleScrollable,
+    );
+    expect(find.text('spaceBetween'), findsNWidgets(2));
   });
 
   testWidgets('divider visibility selection rebuilds the action collection', (
@@ -609,7 +737,11 @@ void main() {
         300,
         scrollable: scrollable,
       );
-      await tester.ensureVisible(find.byKey(materialPresentationSelectorKey));
+      await Scrollable.ensureVisible(
+        tester.element(find.byKey(materialPresentationSelectorKey)),
+        alignment: 0.5,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(materialPresentationSelectorKey));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Mixed per action').last);
@@ -649,6 +781,7 @@ void main() {
         tester.element(find.byKey(cupertinoPresentationSelectorKey)),
         alignment: 0.5,
       );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(cupertinoPresentationSelectorKey));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Mixed per action').last);

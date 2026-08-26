@@ -73,6 +73,7 @@ final class DemoActionSettings extends StatelessWidget {
     required this.maxPrimaryActions,
     required this.enabled,
     required this.showAppBarActionFrame,
+    required this.actionRegionLayout,
     required this.placement,
     required this.retention,
     required this.dividerVisibility,
@@ -81,6 +82,7 @@ final class DemoActionSettings extends StatelessWidget {
     required this.onMaxPrimaryActionsChanged,
     required this.onEnabledChanged,
     required this.onShowAppBarActionFrameChanged,
+    required this.onActionRegionLayoutChanged,
     required this.onPlacementChanged,
     required this.onRetentionChanged,
     required this.onDividerVisibilityChanged,
@@ -93,6 +95,7 @@ final class DemoActionSettings extends StatelessWidget {
   final int? maxPrimaryActions;
   final bool enabled;
   final bool showAppBarActionFrame;
+  final DemoActionRegionLayout actionRegionLayout;
   final DemoPlacement placement;
   final DemoRetention retention;
   final DemoDividerVisibility dividerVisibility;
@@ -101,6 +104,7 @@ final class DemoActionSettings extends StatelessWidget {
   final ValueChanged<int?> onMaxPrimaryActionsChanged;
   final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<bool> onShowAppBarActionFrameChanged;
+  final ValueChanged<DemoActionRegionLayout> onActionRegionLayoutChanged;
   final ValueChanged<DemoPlacement> onPlacementChanged;
   final ValueChanged<DemoRetention> onRetentionChanged;
   final ValueChanged<DemoDividerVisibility> onDividerVisibilityChanged;
@@ -131,6 +135,19 @@ final class DemoActionSettings extends StatelessWidget {
           value: showAppBarActionFrame,
           onChanged: onShowAppBarActionFrameChanged,
         ),
+        const Text('Action region layout'),
+        DropdownButton<DemoActionRegionLayout>(
+          key: actionRegionLayoutSelectorKey,
+          value: actionRegionLayout,
+          isExpanded: true,
+          items: [
+            for (final value in DemoActionRegionLayout.values)
+              DropdownMenuItem(value: value, child: Text(value.label)),
+          ],
+          onChanged: (value) {
+            if (value != null) onActionRegionLayoutChanged(value);
+          },
+        ),
         const SizedBox(height: 8),
         Text(
           'Parent action height: ${parentActionHeight.toStringAsFixed(0)} px',
@@ -153,7 +170,7 @@ final class DemoActionSettings extends StatelessWidget {
           isExpanded: true,
           items: [
             const DropdownMenuItem(value: null, child: Text('Unlimited')),
-            for (var count = 0; count <= actionCount; count += 1)
+            for (final count in Iterable<int>.generate(actionCount + 1))
               DropdownMenuItem(value: count, child: Text('$count')),
           ],
           onChanged: onMaxPrimaryActionsChanged,
@@ -231,6 +248,16 @@ final class DemoActionSettings extends StatelessWidget {
           onChanged: (value) =>
               onSimulatedMaxActionWidthChanged(_actionWidthFromSlider(value)),
         ),
+        _CupertinoSelectionField<DemoActionRegionLayout>(
+          key: actionRegionLayoutSelectorKey,
+          title: 'Action region layout',
+          value: actionRegionLayout,
+          options: DemoActionRegionLayout.values,
+          labelOf: (value) => value.label,
+          onChanged: (value) {
+            if (value != null) onActionRegionLayoutChanged(value);
+          },
+        ),
         const SizedBox(height: 8),
         Text(
           'Parent action height: ${parentActionHeight.toStringAsFixed(0)} px',
@@ -249,7 +276,7 @@ final class DemoActionSettings extends StatelessWidget {
           value: maxPrimaryActions,
           nullLabel: 'Unlimited',
           options: [
-            for (var count = 0; count <= actionCount; count += 1) count,
+            for (final count in Iterable<int>.generate(actionCount + 1)) count,
           ],
           labelOf: (value) => '$value',
           onChanged: onMaxPrimaryActionsChanged,

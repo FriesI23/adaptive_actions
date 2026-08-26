@@ -5,7 +5,9 @@ import 'package:flutter/scheduler.dart';
 
 import '../../core.dart';
 import '../widgets/action_invocation.dart';
-import '../widgets/animated_action_region.dart';
+import '../widgets/action_region_layout.dart';
+import '../widgets/action_region_slot.dart';
+import '../widgets/single_action_region_host.dart';
 
 const _kCupertinoPrimaryDividerWidth = 12.0;
 
@@ -325,7 +327,13 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.resizeDuration = const Duration(milliseconds: 200),
     this.switchInCurve = Curves.easeOut,
     this.switchOutCurve = Curves.easeIn,
-  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity);
+    this.distribution = ActionRegionMainAxisDistribution.compact,
+    this.layoutDelegate,
+  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity),
+       assert(
+         layoutDelegate == null ||
+             distribution == ActionRegionMainAxisDistribution.compact,
+       );
 
   /// Creates a Cupertino action region with the conventional More icon.
   ///
@@ -355,7 +363,13 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.resizeDuration = const Duration(milliseconds: 200),
     this.switchInCurve = Curves.easeOut,
     this.switchOutCurve = Curves.easeIn,
-  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity);
+    this.distribution = ActionRegionMainAxisDistribution.compact,
+    this.layoutDelegate,
+  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity),
+       assert(
+         layoutDelegate == null ||
+             distribution == ActionRegionMainAxisDistribution.compact,
+       );
 
   /// The action roots and placement constraints to resolve.
   ///
@@ -463,6 +477,15 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
   /// is `null`.
   final CupertinoActionPresentation? presentationOverride;
 
+  /// The built-in horizontal distribution for this single action region.
+  final ActionRegionMainAxisDistribution distribution;
+
+  /// An optional advanced layout policy for fixed and flexible slots or gaps.
+  ///
+  /// When supplied, [distribution] must remain
+  /// [ActionRegionMainAxisDistribution.compact].
+  final ActionRegionLayoutDelegate? layoutDelegate;
+
   /// Renderer-owned Cupertino visual and layout configuration.
   ///
   /// ```text
@@ -527,41 +550,68 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visuals = _buildVisuals(context);
-    final result = resolver.resolve(
-      ActionLayoutRequest(
-        actions: actions,
-        constraints: ActionLayoutConstraints(
-          primaryCapacity: primaryCapacity,
-          maxPrimaryActions: maxPrimaryActions,
-          overflowTriggerCost: style.overflowButtonWidth,
-          profiles: visuals.values.map((visual) => visual.profile),
-        ),
-        capabilities: const RendererCapabilities(),
-        primaryOrderOverride: primaryOrderOverride,
-        overflowOrderOverride: overflowOrderOverride,
-      ),
-    );
-    return _AnimatedCupertinoActionsRegion<T>(
-      primaryEntries: result.primary,
-      overflowEntries: result.overflow,
-      primaryDividerBeforeActionIds: result.primaryDividerBeforeActionIds,
-      overflowDividerBeforeActionIds: result.overflowDividerBeforeActionIds,
-      visuals: visuals,
-      onInvoke: onInvoke,
-      iconBuilder: iconBuilder,
-      actionButtonBuilder: actionButtonBuilder,
-      overflowButtonBuilder: overflowButtonBuilder,
-      onOverflowMenuOpened: onOverflowMenuOpened,
-      onOverflowMenuClosed: onOverflowMenuClosed,
-      invokeAfterMenuClosed: invokeAfterMenuClosed,
-      style: style,
-      overflowIcon: overflowIcon,
-      overflowTooltip: overflowTooltip,
+    return SingleActionRegionHost<_CupertinoRegionSlot<T>>(
+      primaryCapacity: primaryCapacity,
+      actionIds: actions.roots.map((action) => action.id),
+      distribution: distribution,
+      layoutDelegate: layoutDelegate,
+      snapshotBuilder: (context, constraints, effectiveCapacity) {
+        final visuals = _buildVisuals(context);
+        final result = resolver.resolve(
+          ActionLayoutRequest(
+            actions: actions,
+            constraints: ActionLayoutConstraints(
+              primaryCapacity: effectiveCapacity,
+              maxPrimaryActions: maxPrimaryActions,
+              overflowTriggerCost: style.overflowButtonWidth,
+              profiles: visuals.values.map((visual) => visual.profile),
+            ),
+            capabilities: const RendererCapabilities(),
+            primaryOrderOverride: primaryOrderOverride,
+            overflowOrderOverride: overflowOrderOverride,
+          ),
+        );
+        final data = _CupertinoRegionData<T>(
+          primaryEntries: result.primary,
+          overflowEntries: result.overflow,
+          primaryDividerBeforeActionIds: result.primaryDividerBeforeActionIds,
+          overflowDividerBeforeActionIds: result.overflowDividerBeforeActionIds,
+          visuals: visuals,
+          onInvoke: onInvoke,
+          iconBuilder: iconBuilder,
+          actionButtonBuilder: actionButtonBuilder,
+          overflowButtonBuilder: overflowButtonBuilder,
+          onOverflowMenuOpened: onOverflowMenuOpened,
+          onOverflowMenuClosed: onOverflowMenuClosed,
+          invokeAfterMenuClosed: invokeAfterMenuClosed,
+          style: style,
+          overflowIcon: overflowIcon,
+          overflowTooltip: overflowTooltip,
+        );
+        return SingleActionRegionSnapshot(slots: data.slots);
+      },
+      height: style.height,
       fadeDuration: fadeDuration,
       resizeDuration: resizeDuration,
       switchInCurve: switchInCurve,
       switchOutCurve: switchOutCurve,
+      variantBuilder: (context, from, to, fadeProgress, resizeProgress) {
+        final fromSlot = from.data;
+        final toSlot = to.data;
+        if (fromSlot is! _CupertinoPrimarySlot<T> ||
+            toSlot is! _CupertinoPrimarySlot<T>) {
+          return to.child;
+        }
+        return _CupertinoRegionSlotView<T>(
+          slot: toSlot,
+          optionTransition: _CupertinoOptionTransition(
+            from: fromSlot.entry.optionId,
+            to: toSlot.entry.optionId,
+            fadeProgress: fadeProgress,
+            resizeProgress: resizeProgress,
+          ),
+        );
+      },
     );
   }
 
@@ -590,97 +640,6 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
       maxLines: 1,
     )..layout();
     return painter.width;
-  }
-}
-
-final class _AnimatedCupertinoActionsRegion<T extends Object>
-    extends StatelessWidget {
-  const _AnimatedCupertinoActionsRegion({
-    required this.primaryEntries,
-    required this.overflowEntries,
-    required this.primaryDividerBeforeActionIds,
-    required this.overflowDividerBeforeActionIds,
-    required this.visuals,
-    required this.onInvoke,
-    required this.iconBuilder,
-    required this.actionButtonBuilder,
-    required this.overflowButtonBuilder,
-    required this.onOverflowMenuOpened,
-    required this.onOverflowMenuClosed,
-    required this.invokeAfterMenuClosed,
-    required this.style,
-    required this.overflowIcon,
-    required this.overflowTooltip,
-    required this.fadeDuration,
-    required this.resizeDuration,
-    required this.switchInCurve,
-    required this.switchOutCurve,
-  });
-
-  final List<ResolvedPrimaryAction<T>> primaryEntries;
-  final List<AdaptiveAction<T>> overflowEntries;
-  final List<ActionId> primaryDividerBeforeActionIds;
-  final List<ActionId> overflowDividerBeforeActionIds;
-  final Map<ActionId, _CupertinoActionVisual<T>> visuals;
-  final ValueChanged<T> onInvoke;
-  final CupertinoActionIconBuilder<T>? iconBuilder;
-  final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
-  final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
-  final VoidCallback? onOverflowMenuOpened;
-  final VoidCallback? onOverflowMenuClosed;
-  final bool invokeAfterMenuClosed;
-  final CupertinoAdaptiveActionsStyle style;
-  final Widget overflowIcon;
-  final String overflowTooltip;
-  final Duration fadeDuration;
-  final Duration resizeDuration;
-  final Curve switchInCurve;
-  final Curve switchOutCurve;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = _CupertinoRegionData<T>(
-      primaryEntries: primaryEntries,
-      overflowEntries: overflowEntries,
-      primaryDividerBeforeActionIds: primaryDividerBeforeActionIds,
-      overflowDividerBeforeActionIds: overflowDividerBeforeActionIds,
-      visuals: visuals,
-      onInvoke: onInvoke,
-      iconBuilder: iconBuilder,
-      actionButtonBuilder: actionButtonBuilder,
-      overflowButtonBuilder: overflowButtonBuilder,
-      onOverflowMenuOpened: onOverflowMenuOpened,
-      onOverflowMenuClosed: onOverflowMenuClosed,
-      invokeAfterMenuClosed: invokeAfterMenuClosed,
-      style: style,
-      overflowIcon: overflowIcon,
-      overflowTooltip: overflowTooltip,
-    );
-    return AnimatedActionRegion<_CupertinoRegionSlot<T>>(
-      items: data.items,
-      height: style.height,
-      fadeDuration: fadeDuration,
-      resizeDuration: resizeDuration,
-      switchInCurve: switchInCurve,
-      switchOutCurve: switchOutCurve,
-      variantBuilder: (context, from, to, fadeProgress, resizeProgress) {
-        final fromSlot = from.data;
-        final toSlot = to.data;
-        if (fromSlot is! _CupertinoPrimarySlot<T> ||
-            toSlot is! _CupertinoPrimarySlot<T>) {
-          return to.child;
-        }
-        return _CupertinoRegionSlotView<T>(
-          slot: toSlot,
-          optionTransition: _CupertinoOptionTransition(
-            from: fromSlot.entry.optionId,
-            to: toSlot.entry.optionId,
-            fadeProgress: fadeProgress,
-            resizeProgress: resizeProgress,
-          ),
-        );
-      },
-    );
   }
 }
 
@@ -719,32 +678,34 @@ final class _CupertinoRegionData<T extends Object> {
   final Widget overflowIcon;
   final String overflowTooltip;
 
-  List<AnimatedActionRegionItem<_CupertinoRegionSlot<T>>> get items => [
+  List<ActionRegionSlot<_CupertinoRegionSlot<T>>> get slots => [
     for (final entry in primaryEntries) _primaryItem(entry),
     if (overflowEntries.isNotEmpty) _overflowItem(),
   ];
 
-  AnimatedActionRegionItem<_CupertinoRegionSlot<T>> _primaryItem(
+  ActionRegionSlot<_CupertinoRegionSlot<T>> _primaryItem(
     ResolvedPrimaryAction<T> entry,
   ) {
     final slot = _CupertinoPrimarySlot<T>(data: this, entry: entry);
-    return AnimatedActionRegionItem<_CupertinoRegionSlot<T>>(
+    return ActionRegionSlot<_CupertinoRegionSlot<T>>(
       id: ('cupertino-primary', entry.action.id),
+      layoutId: ActionRegionLayoutSlotId.action(entry.action.id),
       variant: ('cupertino-option', entry.optionId),
-      role: AnimatedActionRegionItemRole.action,
-      width: slot.width,
+      role: ActionRegionSlotRole.action,
+      minimumExtent: slot.width,
       data: slot,
       child: _CupertinoRegionSlotView<T>(slot: slot),
     );
   }
 
-  AnimatedActionRegionItem<_CupertinoRegionSlot<T>> _overflowItem() {
+  ActionRegionSlot<_CupertinoRegionSlot<T>> _overflowItem() {
     final slot = _CupertinoOverflowSlot<T>(data: this);
-    return AnimatedActionRegionItem<_CupertinoRegionSlot<T>>(
+    return ActionRegionSlot<_CupertinoRegionSlot<T>>(
       id: 'cupertino-overflow',
+      layoutId: const ActionRegionLayoutSlotId.overflow(),
       variant: 'cupertino-overflow-trigger',
-      role: AnimatedActionRegionItemRole.overflow,
-      width: slot.width,
+      role: ActionRegionSlotRole.overflow,
+      minimumExtent: slot.width,
       data: slot,
       child: _CupertinoRegionSlotView<T>(slot: slot),
     );

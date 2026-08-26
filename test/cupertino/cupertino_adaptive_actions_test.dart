@@ -92,6 +92,9 @@ void main() {
     bool invokeAfterMenuClosed = false,
     ActionLayoutResolver resolver = const ActionLayoutResolver(),
     Brightness brightness = Brightness.light,
+    ActionRegionMainAxisDistribution distribution =
+        ActionRegionMainAxisDistribution.compact,
+    ActionRegionLayoutDelegate? layoutDelegate,
   }) => CupertinoApp(
     theme: CupertinoThemeData(
       brightness: brightness,
@@ -120,6 +123,8 @@ void main() {
           onOverflowMenuClosed: onOverflowMenuClosed,
           invokeAfterMenuClosed: invokeAfterMenuClosed,
           resolver: resolver,
+          distribution: distribution,
+          layoutDelegate: layoutDelegate,
         ),
       ),
     ),
@@ -149,9 +154,21 @@ void main() {
     expect(generic.overflowTooltip, isEmpty);
     expect((more.overflowIcon as Icon).icon, CupertinoIcons.ellipsis);
     expect(more.overflowTooltip, 'More actions');
+    expect(generic.distribution, ActionRegionMainAxisDistribution.compact);
     expect(generic.invokeAfterMenuClosed, isFalse);
     expect(more.invokeAfterMenuClosed, isFalse);
     expect(waitsForClose.invokeAfterMenuClosed, isTrue);
+    expect(
+      () => CupertinoAdaptiveActions<String>(
+        actions: actions,
+        onInvoke: (_) {},
+        primaryCapacity: 100,
+        overflowIcon: const Icon(CupertinoIcons.square_grid_2x2),
+        distribution: ActionRegionMainAxisDistribution.spaceBetween,
+        layoutDelegate: const _SingleFlexibleActionLayoutDelegate(),
+      ),
+      throwsAssertionError,
+    );
   });
 
   testWidgets('customizes every primary button through the default builder', (
@@ -210,6 +227,30 @@ void main() {
 
     await tester.tap(find.text('leaf'));
     expect(invoked, ['wrapped', 'leaf-command']);
+  });
+
+  testWidgets('passes the final flexible width to a custom action button', (
+    tester,
+  ) async {
+    BoxConstraints? constraints;
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [action('save')]),
+        onInvoke: (_) {},
+        width: 200,
+        layoutDelegate: const _SingleFlexibleActionLayoutDelegate(),
+        actionButtonBuilder: (context, action, onPressed, defaultBuilder) =>
+            LayoutBuilder(
+              builder: (context, value) {
+                constraints = value;
+                return defaultBuilder(context, action, onPressed);
+              },
+            ),
+      ),
+    );
+
+    expect(constraints!.hasTightWidth, isTrue);
+    expect(constraints!.maxWidth, 200);
   });
 
   testWidgets('customizes the overflow trigger without replacing its menu', (
@@ -1744,6 +1785,7 @@ void main() {
       delegate.diagnosticCodes,
       contains(ResolutionDiagnosticCode.unsatisfiedPinnedConstraint),
     );
+    expect(delegate.resolveCount, 1);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(
@@ -1757,6 +1799,39 @@ void main() {
 
     expect(find.text('Pinned command'), findsOneWidget);
     expect(delegate.resolveCount, 2);
+  });
+
+  testWidgets('keeps primaryCapacity authoritative under a narrower parent', (
+    tester,
+  ) async {
+    final delegate = _RecordingPlacementDelegate();
+
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: CupertinoPageScaffold(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 100),
+              child: CupertinoAdaptiveActions<String>.moreAction(
+                actions: ActionCollection(roots: [action('a', label: 'A')]),
+                onInvoke: (_) {},
+                primaryCapacity: 300,
+                resolver: ActionLayoutResolver(placementDelegate: delegate),
+                fadeDuration: Duration.zero,
+                resizeDuration: Duration.zero,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(delegate.resolveCount, 1);
+    expect(delegate.lastPrimaryCapacity, 300);
+    expect(
+      tester.getSize(find.byType(CupertinoAdaptiveActions<String>)).width,
+      lessThan(100),
+    );
   });
 
   testWidgets('renders a scripted result without replacing its decisions', (
@@ -1878,6 +1953,30 @@ void main() {
   });
 }
 
+final class _SingleFlexibleActionLayoutDelegate
+    implements ActionRegionLayoutDelegate {
+  const _SingleFlexibleActionLayoutDelegate();
+
+  @override
+  ActionRegionLayoutReservation reserve(
+    ActionRegionLayoutReservationInput input,
+  ) => ActionRegionLayoutReservation();
+
+  @override
+  ActionRegionLayoutPlan layout(ActionRegionLayoutInput input) =>
+      ActionRegionLayoutPlan(
+        entries: [
+          for (final slot in input.slots)
+            ActionRegionLayoutEntry.slot(
+              slot.id,
+              extent: slot.id.isOverflow
+                  ? const ActionRegionExtent.fixed()
+                  : ActionRegionExtent.flex(),
+            ),
+        ],
+      );
+}
+
 final class _CupertinoInvocationReplacementHost extends StatefulWidget {
   const _CupertinoInvocationReplacementHost({
     required this.actions,
@@ -1935,6 +2034,7 @@ final class _RecordingPlacementDelegate implements ActionPlacementDelegate {
   final _delegate = const DefaultActionPlacementDelegate();
 
   int resolveCount = 0;
+  double? lastPrimaryCapacity;
   List<ResolutionDiagnosticCode> diagnosticCodes = const [];
 
   @override
@@ -1942,6 +2042,7 @@ final class _RecordingPlacementDelegate implements ActionPlacementDelegate {
     ActionLayoutRequest<T> request,
   ) {
     resolveCount += 1;
+    lastPrimaryCapacity = request.constraints.primaryCapacity;
     final result = _delegate.resolve(request);
     diagnosticCodes = [
       for (final diagnostic in result.diagnostics) diagnostic.code,

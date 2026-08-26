@@ -1,4 +1,4 @@
-import 'package:adaptive_actions/core.dart';
+import 'package:adaptive_actions/adaptive_actions.dart';
 import 'package:flutter/foundation.dart';
 
 const titleAlignmentToggleKey = ValueKey('title-alignment-toggle');
@@ -18,6 +18,7 @@ const customDeleteButtonKey = ValueKey('custom-delete-button');
 const placementSelectorKey = ValueKey('placement-selector');
 const retentionSelectorKey = ValueKey('retention-selector');
 const dividerVisibilitySelectorKey = ValueKey('divider-visibility-selector');
+const actionRegionLayoutSelectorKey = ValueKey('action-region-layout-selector');
 const materialPresentationSelectorKey = ValueKey(
   'material-presentation-selector',
 );
@@ -50,6 +51,90 @@ final class DemoPresentationValues {
 }
 
 enum DemoPresentation { automatic, extended, iconOnly, mixed }
+
+enum DemoActionRegionLayout {
+  compact,
+  spaceBetween,
+  spaceAround,
+  spaceEvenly,
+  insertedExpandedGap,
+  insertedFixedGap,
+}
+
+extension DemoActionRegionLayoutValue on DemoActionRegionLayout {
+  bool get usesFiniteTarget => this != DemoActionRegionLayout.compact;
+
+  String get label => switch (this) {
+    DemoActionRegionLayout.compact => 'Compact',
+    DemoActionRegionLayout.spaceBetween => 'Space between',
+    DemoActionRegionLayout.spaceAround => 'Space around',
+    DemoActionRegionLayout.spaceEvenly => 'Space evenly',
+    DemoActionRegionLayout.insertedExpandedGap =>
+      'Expanded gap after second slot',
+    DemoActionRegionLayout.insertedFixedGap =>
+      'Fixed 48 px gap after second slot',
+  };
+
+  ActionRegionMainAxisDistribution get distribution => switch (this) {
+    DemoActionRegionLayout.compact ||
+    DemoActionRegionLayout.insertedExpandedGap ||
+    DemoActionRegionLayout.insertedFixedGap =>
+      ActionRegionMainAxisDistribution.compact,
+    DemoActionRegionLayout.spaceBetween =>
+      ActionRegionMainAxisDistribution.spaceBetween,
+    DemoActionRegionLayout.spaceAround =>
+      ActionRegionMainAxisDistribution.spaceAround,
+    DemoActionRegionLayout.spaceEvenly =>
+      ActionRegionMainAxisDistribution.spaceEvenly,
+  };
+
+  ActionRegionLayoutDelegate? get layoutDelegate => switch (this) {
+    DemoActionRegionLayout.insertedExpandedGap =>
+      const _DemoInsertedGapLayoutDelegate.expanded(),
+    DemoActionRegionLayout.insertedFixedGap =>
+      const _DemoInsertedGapLayoutDelegate.fixed(48),
+    _ => null,
+  };
+}
+
+final class _DemoInsertedGapLayoutDelegate
+    implements ActionRegionLayoutDelegate {
+  const _DemoInsertedGapLayoutDelegate.expanded() : _fixedExtent = null;
+
+  const _DemoInsertedGapLayoutDelegate.fixed(double extent)
+    : _fixedExtent = extent;
+
+  final double? _fixedExtent;
+
+  @override
+  ActionRegionLayoutReservation reserve(
+    ActionRegionLayoutReservationInput input,
+  ) => ActionRegionLayoutReservation(
+    fixedExtent: input.actionIds.isEmpty ? 0 : _fixedExtent ?? 0,
+  );
+
+  @override
+  ActionRegionLayoutPlan layout(ActionRegionLayoutInput input) {
+    final entries = <ActionRegionLayoutEntry>[];
+    var gapInserted = false;
+    for (final (index, slot) in input.slots.indexed) {
+      if (index == 2) {
+        entries.add(_gap(input.reservation));
+        gapInserted = true;
+      }
+      entries.add(ActionRegionLayoutEntry.slot(slot.id));
+    }
+    if (!gapInserted && input.reservation.fixedExtent > 0) {
+      entries.add(_gap(input.reservation));
+    }
+    return ActionRegionLayoutPlan(entries: entries);
+  }
+
+  ActionRegionLayoutEntry _gap(ActionRegionLayoutReservation reservation) =>
+      _fixedExtent == null
+      ? ActionRegionLayoutEntry.flexGap()
+      : ActionRegionLayoutEntry.fixedGap(reservation.fixedExtent);
+}
 
 extension DemoPresentationLabel on DemoPresentation {
   String get label => switch (this) {

@@ -1,8 +1,39 @@
 import 'package:adaptive_actions/adaptive_actions.dart';
 import 'package:adaptive_actions/core.dart' as core;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'aggregate entrypoint exposes core, platform, and shared widget APIs',
+    () {
+      final actions = ActionCollection<String>(roots: []);
+
+      expect(
+        MaterialAdaptiveActions<String>(
+          actions: actions,
+          onInvoke: (_) {},
+          primaryCapacity: 0,
+          overflowIcon: const SizedBox.shrink(),
+        ),
+        isA<MaterialAdaptiveActions<String>>(),
+      );
+      expect(
+        CupertinoAdaptiveActions<String>(
+          actions: actions,
+          onInvoke: (_) {},
+          primaryCapacity: 0,
+          overflowIcon: const SizedBox.shrink(),
+        ),
+        isA<CupertinoAdaptiveActions<String>>(),
+      );
+      expect(
+        ActionRegionMainAxisDistribution.compact,
+        isA<ActionRegionMainAxisDistribution>(),
+      );
+    },
+  );
+
   group('public core API', () {
     test('is available from the dedicated core entrypoint', () {
       expect(

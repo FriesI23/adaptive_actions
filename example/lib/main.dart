@@ -126,6 +126,7 @@ final class _AdaptiveActionsDemoPageState
   DemoPlacement _placement = DemoPlacement.automatic;
   DemoRetention _retention = DemoRetention.normal;
   DemoDividerVisibility _dividerVisibility = DemoDividerVisibility.menuOnly;
+  DemoActionRegionLayout _actionRegionLayout = DemoActionRegionLayout.compact;
   final _presentations = DemoPresentationValues();
   double? _simulatedMaxActionWidth = defaultSimulatedMaxActionWidth;
   double _parentActionHeight = defaultParentActionHeight;
@@ -199,6 +200,7 @@ final class _AdaptiveActionsDemoPageState
           actionHeight: _parentActionHeight,
           maxPrimaryActions: _maxPrimaryActions,
           presentation: _presentations.cupertino,
+          actionRegionLayout: _actionRegionLayout,
           fadeDuration: _fadeDuration,
           resizeDuration: _resizeDuration,
           brightness: widget.brightness,
@@ -261,6 +263,7 @@ final class _AdaptiveActionsDemoPageState
             maxPrimaryActions: _maxPrimaryActions,
             enabled: _enabled,
             showAppBarActionFrame: _showAppBarActionFrame,
+            actionRegionLayout: _actionRegionLayout,
             placement: _placement,
             retention: _retention,
             dividerVisibility: _dividerVisibility,
@@ -273,6 +276,8 @@ final class _AdaptiveActionsDemoPageState
             onEnabledChanged: (enabled) => setState(() => _enabled = enabled),
             onShowAppBarActionFrameChanged: (show) =>
                 setState(() => _showAppBarActionFrame = show),
+            onActionRegionLayoutChanged: (layout) =>
+                setState(() => _actionRegionLayout = layout),
             onPlacementChanged: (placement) =>
                 setState(() => _placement = placement),
             onRetentionChanged: (retention) =>
@@ -359,6 +364,9 @@ final class _AdaptiveActionsDemoPageState
             builder: (context, snapshot, child) => LayoutResultPanel(
               snapshot: snapshot,
               lastInvocation: _lastInvocation,
+              layout: _actionRegionLayout.name,
+              distribution: _actionRegionLayout.distribution.name,
+              planAlignment: 'start',
             ),
           ),
         ),
@@ -419,29 +427,34 @@ final class _AdaptiveActionsDemoPageState
     required ActionCollection<DemoCommand> actions,
     required double actionWidth,
   }) => switch (_renderer) {
-    DemoRenderer.material => MaterialAdaptiveActions<DemoCommand>.moreAction(
-      key: key,
-      actions: actions,
-      resolver: _resolver,
-      primaryOrderOverride: _primaryOrderOverride,
-      overflowOrderOverride: _overflowOrderOverride,
-      primaryCapacity: actionWidth,
-      maxPrimaryActions: _maxPrimaryActions,
-      presentationForAction: _presentations.material == DemoPresentation.mixed
-          ? _materialMixedPresentationForAction
-          : null,
-      presentationOverride: _materialPresentationOverride(
-        _presentations.material,
+    DemoRenderer.material => _withActionRegionTarget(
+      actionWidth: actionWidth,
+      child: MaterialAdaptiveActions<DemoCommand>.moreAction(
+        key: key,
+        actions: actions,
+        resolver: _resolver,
+        primaryOrderOverride: _primaryOrderOverride,
+        overflowOrderOverride: _overflowOrderOverride,
+        primaryCapacity: actionWidth,
+        maxPrimaryActions: _maxPrimaryActions,
+        presentationForAction: _presentations.material == DemoPresentation.mixed
+            ? _materialMixedPresentationForAction
+            : null,
+        presentationOverride: _materialPresentationOverride(
+          _presentations.material,
+        ),
+        onInvoke: _onInvoke,
+        iconBuilder: _materialIconBuilder,
+        actionButtonBuilder: _materialActionButtonBuilder,
+        overflowButtonBuilder: _customOverflowButton
+            ? _materialOverflowButtonBuilder
+            : null,
+        overflowTooltip: 'More actions',
+        fadeDuration: _fadeDuration,
+        resizeDuration: _resizeDuration,
+        distribution: _actionRegionLayout.distribution,
+        layoutDelegate: _actionRegionLayout.layoutDelegate,
       ),
-      onInvoke: _onInvoke,
-      iconBuilder: _materialIconBuilder,
-      actionButtonBuilder: _materialActionButtonBuilder,
-      overflowButtonBuilder: _customOverflowButton
-          ? _materialOverflowButtonBuilder
-          : null,
-      overflowTooltip: 'More actions',
-      fadeDuration: _fadeDuration,
-      resizeDuration: _resizeDuration,
     ),
     DemoRenderer.apple => CupertinoDemoActions<DemoCommand>(
       key: key,
@@ -452,12 +465,24 @@ final class _AdaptiveActionsDemoPageState
       actionWidth: actionWidth,
       maxPrimaryActions: _maxPrimaryActions,
       presentation: _presentations.cupertino,
+      actionRegionLayout: _actionRegionLayout,
       fadeDuration: _fadeDuration,
       resizeDuration: _resizeDuration,
       onInvoke: _onInvoke,
       customOverflowButton: _customOverflowButton,
     ),
   };
+
+  Widget _withActionRegionTarget({
+    required double actionWidth,
+    required Widget child,
+  }) {
+    if (!_actionRegionLayout.usesFiniteTarget) return child;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: actionWidth),
+      child: child,
+    );
+  }
 
   List<AdaptiveMenuEntry<DemoCommand>> _buildActionEntries() {
     final savePolicy = switch (_placement) {

@@ -5,7 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('architecture boundaries', () {
     test('public barrels export only the supported core surface', () {
-      expect(_exportsOf('lib/adaptive_actions.dart'), ["export 'core.dart';"]);
+      expect(_exportsOf('lib/adaptive_actions.dart'), [
+        "export 'core.dart';",
+        "export 'cupertino.dart';",
+        "export 'material.dart';",
+      ]);
       expect(_exportsOf('lib/core.dart'), _supportedCoreExports);
     });
 
@@ -13,8 +17,20 @@ void main() {
       expect(_exportsOf('lib/cupertino.dart'), [
         "export 'core.dart';",
         "export 'src/cupertino/cupertino_adaptive_actions.dart';",
+        "export 'src/widgets/action_region_layout.dart';",
       ]);
     });
+
+    test(
+      'Material entrypoint exports core, Material, and shared widget APIs',
+      () {
+        expect(_exportsOf('lib/material.dart'), [
+          "export 'core.dart';",
+          "export 'src/material/material_adaptive_actions.dart';",
+          "export 'src/widgets/action_region_layout.dart';",
+        ]);
+      },
+    );
 
     test('Cupertino library does not import or export Material APIs', () {
       final forbiddenDirectives = <String>[];
@@ -57,6 +73,27 @@ void main() {
       }
 
       expect(forbiddenImports, isEmpty);
+    });
+
+    test('shared widgets do not depend on platform renderer libraries', () {
+      final forbiddenDirectives = <String>[];
+      final widgetFiles = Directory('lib/src/widgets')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.dart'));
+
+      for (final file in widgetFiles) {
+        for (final line in file.readAsLinesSync()) {
+          final directive = line.trim();
+          if ((directive.startsWith('import ') ||
+                  directive.startsWith('export ')) &&
+              _forbiddenSharedWidgetDependencies.any(directive.contains)) {
+            forbiddenDirectives.add('${file.path}: $directive');
+          }
+        }
+      }
+
+      expect(forbiddenDirectives, isEmpty);
     });
 
     test('core source contains no superseded public API terminology', () {
@@ -142,6 +179,15 @@ const _forbiddenCupertinoDependencies = [
   '/material.dart',
   '/src/material/',
   '../material/',
+];
+
+const _forbiddenSharedWidgetDependencies = [
+  'package:flutter/material.dart',
+  'package:flutter/cupertino.dart',
+  '/src/material/',
+  '/src/cupertino/',
+  '../material/',
+  '../cupertino/',
 ];
 
 const _supersededPublicTerms = [

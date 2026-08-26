@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core.dart';
 import '../widgets/action_invocation.dart';
-import '../widgets/animated_action_region.dart';
+import '../widgets/action_region_layout.dart';
+import '../widgets/action_region_slot.dart';
+import '../widgets/single_action_region_host.dart';
 
 const _kMaterialPrimaryDividerWidth = 16.0;
 
@@ -288,7 +290,13 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.resizeDuration = const Duration(milliseconds: 200),
     this.switchInCurve = Curves.easeOut,
     this.switchOutCurve = Curves.easeIn,
-  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity);
+    this.distribution = ActionRegionMainAxisDistribution.compact,
+    this.layoutDelegate,
+  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity),
+       assert(
+         layoutDelegate == null ||
+             distribution == ActionRegionMainAxisDistribution.compact,
+       );
 
   /// Creates a Material action region with the conventional More icon.
   ///
@@ -316,7 +324,13 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.resizeDuration = const Duration(milliseconds: 200),
     this.switchInCurve = Curves.easeOut,
     this.switchOutCurve = Curves.easeIn,
-  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity);
+    this.distribution = ActionRegionMainAxisDistribution.compact,
+    this.layoutDelegate,
+  }) : assert(primaryCapacity >= 0 && primaryCapacity < double.infinity),
+       assert(
+         layoutDelegate == null ||
+             distribution == ActionRegionMainAxisDistribution.compact,
+       );
 
   /// The action roots and placement constraints to resolve.
   ///
@@ -408,6 +422,15 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
   /// is `null`.
   final MaterialActionPresentation? presentationOverride;
 
+  /// The built-in horizontal distribution for this single action region.
+  final ActionRegionMainAxisDistribution distribution;
+
+  /// An optional advanced layout policy for fixed and flexible slots or gaps.
+  ///
+  /// When supplied, [distribution] must remain
+  /// [ActionRegionMainAxisDistribution.compact].
+  final ActionRegionLayoutDelegate? layoutDelegate;
+
   /// Renderer-owned Material visual and layout configuration.
   ///
   /// ```text
@@ -480,39 +503,56 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visuals = _buildVisuals(context);
-    final result = resolver.resolve(
-      ActionLayoutRequest(
-        actions: actions,
-        constraints: ActionLayoutConstraints(
-          primaryCapacity: primaryCapacity,
-          maxPrimaryActions: maxPrimaryActions,
-          overflowTriggerCost: style.overflowButtonWidth,
-          profiles: visuals.values.map((visual) => visual.profile),
-        ),
-        capabilities: const RendererCapabilities(),
-        primaryOrderOverride: primaryOrderOverride,
-        overflowOrderOverride: overflowOrderOverride,
-      ),
-    );
-    return _AnimatedMaterialActionsRegion<T>(
-      primaryEntries: result.primary,
-      overflowEntries: result.overflow,
-      primaryDividerBeforeActionIds: result.primaryDividerBeforeActionIds,
-      overflowDividerBeforeActionIds: result.overflowDividerBeforeActionIds,
-      visuals: visuals,
-      onInvoke: onInvoke,
-      iconBuilder: iconBuilder,
-      actionButtonBuilder: actionButtonBuilder,
-      overflowButtonBuilder: overflowButtonBuilder,
-      style: style,
-      overflowIcon: overflowIcon,
-      overflowTooltip: overflowTooltip,
-      menuAnimationEnabled: menuAnimationEnabled,
+    return SingleActionRegionHost<_MaterialRegionSlot<T>>(
+      primaryCapacity: primaryCapacity,
+      actionIds: actions.roots.map((action) => action.id),
+      distribution: distribution,
+      layoutDelegate: layoutDelegate,
+      snapshotBuilder: (context, constraints, effectiveCapacity) {
+        final visuals = _buildVisuals(context);
+        final result = resolver.resolve(
+          ActionLayoutRequest(
+            actions: actions,
+            constraints: ActionLayoutConstraints(
+              primaryCapacity: effectiveCapacity,
+              maxPrimaryActions: maxPrimaryActions,
+              overflowTriggerCost: style.overflowButtonWidth,
+              profiles: visuals.values.map((visual) => visual.profile),
+            ),
+            capabilities: const RendererCapabilities(),
+            primaryOrderOverride: primaryOrderOverride,
+            overflowOrderOverride: overflowOrderOverride,
+          ),
+        );
+        final data = _MaterialRegionData<T>(
+          primaryEntries: result.primary,
+          overflowEntries: result.overflow,
+          primaryDividerBeforeActionIds: result.primaryDividerBeforeActionIds,
+          overflowDividerBeforeActionIds: result.overflowDividerBeforeActionIds,
+          visuals: visuals,
+          onInvoke: onInvoke,
+          iconBuilder: iconBuilder,
+          actionButtonBuilder: actionButtonBuilder,
+          overflowButtonBuilder: overflowButtonBuilder,
+          style: style,
+          overflowIcon: overflowIcon,
+          overflowTooltip: overflowTooltip,
+          menuAnimationEnabled: menuAnimationEnabled,
+        );
+        return SingleActionRegionSnapshot(slots: data.slots);
+      },
+      height: style.height,
       fadeDuration: fadeDuration,
       resizeDuration: resizeDuration,
       switchInCurve: switchInCurve,
       switchOutCurve: switchOutCurve,
+      variantBuilder: (context, from, to, fadeProgress, resizeProgress) =>
+          _MaterialRegionVariantTransition<T>(
+            from: from,
+            to: to,
+            fadeProgress: fadeProgress,
+            resizeProgress: resizeProgress,
+          ),
     );
   }
 
@@ -543,67 +583,6 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
   }
 }
 
-final class _AnimatedMaterialActionsRegion<T extends Object>
-    extends StatelessWidget {
-  const _AnimatedMaterialActionsRegion({
-    required this.primaryEntries,
-    required this.overflowEntries,
-    required this.primaryDividerBeforeActionIds,
-    required this.overflowDividerBeforeActionIds,
-    required this.visuals,
-    required this.onInvoke,
-    required this.iconBuilder,
-    required this.actionButtonBuilder,
-    required this.overflowButtonBuilder,
-    required this.style,
-    required this.overflowIcon,
-    required this.overflowTooltip,
-    required this.menuAnimationEnabled,
-    required this.fadeDuration,
-    required this.resizeDuration,
-    required this.switchInCurve,
-    required this.switchOutCurve,
-  });
-
-  final List<ResolvedPrimaryAction<T>> primaryEntries;
-  final List<AdaptiveAction<T>> overflowEntries;
-  final List<ActionId> primaryDividerBeforeActionIds;
-  final List<ActionId> overflowDividerBeforeActionIds;
-  final Map<ActionId, _MaterialActionVisual<T>> visuals;
-  final ValueChanged<T> onInvoke;
-  final MaterialActionIconBuilder<T>? iconBuilder;
-  final MaterialActionButtonBuilder<T>? actionButtonBuilder;
-  final MaterialOverflowButtonBuilder? overflowButtonBuilder;
-  final MaterialAdaptiveActionsStyle style;
-  final Widget overflowIcon;
-  final String overflowTooltip;
-  final bool menuAnimationEnabled;
-  final Duration fadeDuration;
-  final Duration resizeDuration;
-  final Curve switchInCurve;
-  final Curve switchOutCurve;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = _MaterialRegionData<T>.fromWidget(this);
-    return AnimatedActionRegion<_MaterialRegionSlot<T>>(
-      items: data.items,
-      height: style.height,
-      fadeDuration: fadeDuration,
-      resizeDuration: resizeDuration,
-      switchInCurve: switchInCurve,
-      switchOutCurve: switchOutCurve,
-      variantBuilder: (context, from, to, fadeProgress, resizeProgress) =>
-          _MaterialRegionVariantTransition<T>(
-            from: from,
-            to: to,
-            fadeProgress: fadeProgress,
-            resizeProgress: resizeProgress,
-          ),
-    );
-  }
-}
-
 final class _MaterialRegionVariantTransition<T extends Object>
     extends StatelessWidget {
   const _MaterialRegionVariantTransition({
@@ -613,8 +592,8 @@ final class _MaterialRegionVariantTransition<T extends Object>
     required this.resizeProgress,
   });
 
-  final AnimatedActionRegionItem<_MaterialRegionSlot<T>> from;
-  final AnimatedActionRegionItem<_MaterialRegionSlot<T>> to;
+  final ActionRegionSlot<_MaterialRegionSlot<T>> from;
+  final ActionRegionSlot<_MaterialRegionSlot<T>> to;
   final Animation<double> fadeProgress;
   final Animation<double> resizeProgress;
 
@@ -655,24 +634,6 @@ final class _MaterialRegionData<T extends Object> {
     required this.menuAnimationEnabled,
   });
 
-  factory _MaterialRegionData.fromWidget(
-    _AnimatedMaterialActionsRegion<T> widget,
-  ) => _MaterialRegionData<T>(
-    primaryEntries: widget.primaryEntries,
-    overflowEntries: widget.overflowEntries,
-    primaryDividerBeforeActionIds: widget.primaryDividerBeforeActionIds,
-    overflowDividerBeforeActionIds: widget.overflowDividerBeforeActionIds,
-    visuals: widget.visuals,
-    onInvoke: widget.onInvoke,
-    iconBuilder: widget.iconBuilder,
-    actionButtonBuilder: widget.actionButtonBuilder,
-    overflowButtonBuilder: widget.overflowButtonBuilder,
-    style: widget.style,
-    overflowIcon: widget.overflowIcon,
-    overflowTooltip: widget.overflowTooltip,
-    menuAnimationEnabled: widget.menuAnimationEnabled,
-  );
-
   final List<ResolvedPrimaryAction<T>> primaryEntries;
   final List<AdaptiveAction<T>> overflowEntries;
   final List<ActionId> primaryDividerBeforeActionIds;
@@ -687,32 +648,34 @@ final class _MaterialRegionData<T extends Object> {
   final String overflowTooltip;
   final bool menuAnimationEnabled;
 
-  List<AnimatedActionRegionItem<_MaterialRegionSlot<T>>> get items => [
+  List<ActionRegionSlot<_MaterialRegionSlot<T>>> get slots => [
     for (final entry in primaryEntries) primaryItem(entry),
     if (overflowEntries.isNotEmpty) overflowItem(),
   ];
 
-  AnimatedActionRegionItem<_MaterialRegionSlot<T>> primaryItem(
+  ActionRegionSlot<_MaterialRegionSlot<T>> primaryItem(
     ResolvedPrimaryAction<T> entry,
   ) {
     final slot = primarySlot(entry);
-    return AnimatedActionRegionItem<_MaterialRegionSlot<T>>(
+    return ActionRegionSlot<_MaterialRegionSlot<T>>(
       id: ('material-primary', entry.action.id),
+      layoutId: ActionRegionLayoutSlotId.action(entry.action.id),
       variant: ('material-option', entry.optionId),
-      role: AnimatedActionRegionItemRole.action,
-      width: slot.width,
+      role: ActionRegionSlotRole.action,
+      minimumExtent: slot.width,
       data: slot,
       child: _MaterialRegionSlotView<T>(slot: slot),
     );
   }
 
-  AnimatedActionRegionItem<_MaterialRegionSlot<T>> overflowItem() {
+  ActionRegionSlot<_MaterialRegionSlot<T>> overflowItem() {
     final slot = overflowSlot();
-    return AnimatedActionRegionItem<_MaterialRegionSlot<T>>(
+    return ActionRegionSlot<_MaterialRegionSlot<T>>(
       id: 'material-overflow',
+      layoutId: const ActionRegionLayoutSlotId.overflow(),
       variant: 'material-overflow-trigger',
-      role: AnimatedActionRegionItemRole.overflow,
-      width: slot.width,
+      role: ActionRegionSlotRole.overflow,
+      minimumExtent: slot.width,
       data: slot,
       child: _MaterialRegionSlotView<T>(slot: slot),
     );

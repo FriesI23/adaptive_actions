@@ -1,3 +1,5 @@
+import 'package:adaptive_actions/adaptive_actions.dart';
+import 'package:adaptive_actions/src/widgets/action_region_slot.dart';
 import 'package:adaptive_actions/src/widgets/animated_action_region.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,22 +7,25 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const duration = Duration(milliseconds: 400);
 
-  AnimatedActionRegionItem<String> item(
+  ActionRegionSlot<String> item(
     String id, {
     String variant = 'regular',
     double width = 40,
-    AnimatedActionRegionItemRole role = AnimatedActionRegionItemRole.action,
-  }) => AnimatedActionRegionItem<String>(
+    ActionRegionSlotRole role = ActionRegionSlotRole.action,
+  }) => ActionRegionSlot<String>(
     id: id,
+    layoutId: role == ActionRegionSlotRole.overflow
+        ? const ActionRegionLayoutSlotId.overflow()
+        : ActionRegionLayoutSlotId.action(ActionId(id)),
     variant: variant,
     role: role,
-    width: width,
+    minimumExtent: width,
     data: '$id-$variant',
     child: SizedBox(key: ValueKey('$id-$variant')),
   );
 
   Widget target(
-    List<AnimatedActionRegionItem<String>> items, {
+    List<ActionRegionSlot<String>> items, {
     Duration fadeDuration = duration,
     Duration resizeDuration = duration,
   }) => Directionality(
@@ -40,7 +45,9 @@ void main() {
               builder: (context, child) => SizedBox(
                 key: const ValueKey('variant-frame'),
                 width:
-                    from.width + (to.width - from.width) * resizeProgress.value,
+                    from.minimumExtent +
+                    (to.minimumExtent - from.minimumExtent) *
+                        resizeProgress.value,
               ),
             ),
       ),
@@ -55,7 +62,7 @@ void main() {
       target([
         item('a'),
         item('b'),
-        item('overflow', role: AnimatedActionRegionItemRole.overflow),
+        item('overflow', role: ActionRegionSlotRole.overflow),
       ]),
     );
     await tester.pump(const Duration(milliseconds: 200));
@@ -84,7 +91,7 @@ void main() {
   ) async {
     await tester.pumpWidget(target([item('save')]));
     await tester.pumpWidget(
-      target([item('overflow', role: AnimatedActionRegionItemRole.overflow)]),
+      target([item('overflow', role: ActionRegionSlotRole.overflow)]),
     );
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -121,7 +128,7 @@ void main() {
         .width;
 
     await tester.pumpWidget(
-      target([item('overflow', role: AnimatedActionRegionItemRole.overflow)]),
+      target([item('overflow', role: ActionRegionSlotRole.overflow)]),
     );
     expect(
       tester.getSize(find.byType(AnimatedActionRegion<String>)).width,

@@ -21,6 +21,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
     required this.actionHeight,
     required this.maxPrimaryActions,
     required this.presentation,
+    required this.actionRegionLayout,
     required this.fadeDuration,
     required this.resizeDuration,
     required this.brightness,
@@ -38,6 +39,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
   final double actionHeight;
   final int? maxPrimaryActions;
   final DemoPresentation presentation;
+  final DemoActionRegionLayout actionRegionLayout;
   final Duration fadeDuration;
   final Duration resizeDuration;
   final Brightness brightness;
@@ -78,6 +80,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
                         actionWidth: actionWidth,
                         maxPrimaryActions: maxPrimaryActions,
                         presentation: presentation,
+                        actionRegionLayout: actionRegionLayout,
                         fadeDuration: fadeDuration,
                         resizeDuration: resizeDuration,
                         onInvoke: onInvoke,
@@ -105,6 +108,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
     required this.actionWidth,
     required this.maxPrimaryActions,
     required this.presentation,
+    required this.actionRegionLayout,
     required this.fadeDuration,
     required this.resizeDuration,
     required this.onInvoke,
@@ -118,33 +122,43 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
   final double actionWidth;
   final int? maxPrimaryActions;
   final DemoPresentation presentation;
+  final DemoActionRegionLayout actionRegionLayout;
   final Duration fadeDuration;
   final Duration resizeDuration;
   final ValueChanged<T> onInvoke;
   final bool customOverflowButton;
 
   @override
-  Widget build(BuildContext context) => CupertinoAdaptiveActions<T>.moreAction(
-    actions: actions,
-    resolver: resolver,
-    primaryOrderOverride: primaryOrderOverride,
-    overflowOrderOverride: overflowOrderOverride,
-    primaryCapacity: actionWidth,
-    maxPrimaryActions: maxPrimaryActions,
-    presentationForAction: presentation == DemoPresentation.mixed
-        ? _cupertinoMixedPresentationForAction
-        : null,
-    presentationOverride: _cupertinoPresentationOverride(presentation),
-    onInvoke: onInvoke,
-    iconBuilder: _cupertinoIconBuilder,
-    actionButtonBuilder: _cupertinoActionButtonBuilder,
-    overflowButtonBuilder: customOverflowButton
-        ? _cupertinoOverflowButtonBuilder
-        : null,
-    overflowTooltip: 'More actions',
-    fadeDuration: fadeDuration,
-    resizeDuration: resizeDuration,
-  );
+  Widget build(BuildContext context) {
+    final region = CupertinoAdaptiveActions<T>.moreAction(
+      actions: actions,
+      resolver: resolver,
+      primaryOrderOverride: primaryOrderOverride,
+      overflowOrderOverride: overflowOrderOverride,
+      primaryCapacity: actionWidth,
+      maxPrimaryActions: maxPrimaryActions,
+      presentationForAction: presentation == DemoPresentation.mixed
+          ? _cupertinoMixedPresentationForAction
+          : null,
+      presentationOverride: _cupertinoPresentationOverride(presentation),
+      onInvoke: onInvoke,
+      iconBuilder: _cupertinoIconBuilder,
+      actionButtonBuilder: _cupertinoActionButtonBuilder,
+      overflowButtonBuilder: customOverflowButton
+          ? _cupertinoOverflowButtonBuilder
+          : null,
+      overflowTooltip: 'More actions',
+      fadeDuration: fadeDuration,
+      resizeDuration: resizeDuration,
+      distribution: actionRegionLayout.distribution,
+      layoutDelegate: actionRegionLayout.layoutDelegate,
+    );
+    if (!actionRegionLayout.usesFiniteTarget) return region;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: actionWidth),
+      child: region,
+    );
+  }
 }
 
 CupertinoActionPresentation? _cupertinoPresentationOverride(

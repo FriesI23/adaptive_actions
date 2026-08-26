@@ -132,10 +132,16 @@ final class LayoutResultPanel extends StatelessWidget {
     super.key,
     required this.snapshot,
     required this.lastInvocation,
+    required this.layout,
+    required this.distribution,
+    required this.planAlignment,
   });
 
   final DemoLayoutSnapshot? snapshot;
   final String lastInvocation;
+  final String layout;
+  final String distribution;
+  final String planAlignment;
 
   @override
   Widget build(BuildContext context) {
@@ -143,9 +149,27 @@ final class LayoutResultPanel extends StatelessWidget {
     if (result == null) {
       return const Text('Resolving layout…');
     }
+    final direction = Directionality.of(context);
+    final physicalStart = direction == TextDirection.ltr ? 'left' : 'right';
+    final physicalEnd = direction == TextDirection.ltr ? 'right' : 'left';
+    final physicalPlanAlignment = planAlignment == 'start'
+        ? physicalStart
+        : physicalEnd;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _ResultRow(label: 'Layout', values: [layout]),
+        _ResultRow(label: 'Distribution', values: [distribution]),
+        _ResultRow(label: 'Direction', values: [direction.name]),
+        _ResultRow(label: 'Toolbar alignment', values: ['end', physicalEnd]),
+        _ResultRow(
+          label: 'Preview alignment',
+          values: ['start', physicalStart],
+        ),
+        _ResultRow(
+          label: 'Plan alignment',
+          values: [planAlignment, physicalPlanAlignment],
+        ),
         _ResultRow(label: 'Primary', values: result.primary),
         _ResultRow(label: 'Overflow', values: result.overflow),
         _ResultRow(label: 'Hidden', values: result.hidden),
@@ -168,7 +192,7 @@ final class _ResultRow extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 112, child: Text('$label:')),
+        SizedBox(width: 144, child: Text('$label:')),
         Expanded(child: Text(values.isEmpty ? '—' : values.join(', '))),
       ],
     ),

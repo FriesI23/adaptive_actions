@@ -1,42 +1,15 @@
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
-/// The structural role of an item in an [AnimatedActionRegion].
-@internal
-enum AnimatedActionRegionItemRole { action, overflow }
-
-/// One renderer-owned item consumed by [AnimatedActionRegion].
-///
-/// This type is package-internal. Renderers retain ownership of [data] and
-/// [child]; the shared region uses only [id], [variant], [role], and [width] to
-/// plan a single boundary transition.
-@internal
-@immutable
-final class AnimatedActionRegionItem<T extends Object> {
-  const AnimatedActionRegionItem({
-    required this.id,
-    required this.variant,
-    required this.role,
-    required this.width,
-    required this.data,
-    required this.child,
-  }) : assert(width >= 0 && width < double.infinity);
-
-  final Object id;
-  final Object variant;
-  final AnimatedActionRegionItemRole role;
-  final double width;
-  final T data;
-  final Widget child;
-}
+import 'action_region_slot.dart';
 
 /// Builds a renderer-specific transition between variants of the same item.
 @internal
 typedef AnimatedActionRegionVariantBuilder<T extends Object> =
     Widget Function(
       BuildContext context,
-      AnimatedActionRegionItem<T> from,
-      AnimatedActionRegionItem<T> to,
+      ActionRegionSlot<T> from,
+      ActionRegionSlot<T> to,
       Animation<double> fadeProgress,
       Animation<double> resizeProgress,
     );
@@ -60,7 +33,7 @@ final class AnimatedActionRegion<T extends Object> extends StatefulWidget {
     this.variantBuilder,
   }) : assert(height > 0 && height < double.infinity);
 
-  final List<AnimatedActionRegionItem<T>> items;
+  final List<ActionRegionSlot<T>> items;
   final double height;
   final Duration fadeDuration;
   final Duration resizeDuration;
@@ -165,7 +138,7 @@ final class _AnimatedActionRegionState<T extends Object>
       if (oldItem.id != newItem.id ||
           oldItem.variant != newItem.variant ||
           oldItem.role != newItem.role ||
-          oldItem.width != newItem.width) {
+          oldItem.minimumExtent != newItem.minimumExtent) {
         return false;
       }
     }
@@ -221,8 +194,8 @@ final class _ActionRegionTransition<T extends Object> {
   });
 
   static _ActionRegionTransition<T>? between<T extends Object>(
-    List<AnimatedActionRegionItem<T>> oldItems,
-    List<AnimatedActionRegionItem<T>> newItems,
+    List<ActionRegionSlot<T>> oldItems,
+    List<ActionRegionSlot<T>> newItems,
   ) {
     final oldActions = _actions(oldItems);
     final newActions = _actions(newItems);
@@ -302,8 +275,8 @@ final class _ActionRegionTransition<T extends Object> {
   }
 
   final _ActionRegionTransitionKind kind;
-  final AnimatedActionRegionItem<T>? from;
-  final AnimatedActionRegionItem<T>? to;
+  final ActionRegionSlot<T>? from;
+  final ActionRegionSlot<T>? to;
   final int slotIndex;
   final bool isEntering;
   final _ActionRegionVariantSnapshot<T>? variantSnapshot;
@@ -359,21 +332,33 @@ final class _ActionRegionTransition<T extends Object> {
       to: toItem,
       fadeProgress: fadeProgress,
       resizeProgress: resizeProgress,
-      width: _lerp(fromItem.width, toItem.width, resizeProgress),
+      leadingExtent: _lerp(
+        fromItem.leadingExtent,
+        toItem.leadingExtent,
+        resizeProgress,
+      ),
+      actionExtent: _lerp(
+        fromItem.effectiveExtent,
+        toItem.effectiveExtent,
+        resizeProgress,
+      ),
+      trailingExtent: _lerp(
+        fromItem.trailingExtent,
+        toItem.trailingExtent,
+        resizeProgress,
+      ),
     );
   }
 
-  static List<AnimatedActionRegionItem<T>> _actions<T extends Object>(
-    List<AnimatedActionRegionItem<T>> items,
-  ) => items
-      .where((item) => item.role == AnimatedActionRegionItemRole.action)
-      .toList();
+  static List<ActionRegionSlot<T>> _actions<T extends Object>(
+    List<ActionRegionSlot<T>> items,
+  ) => items.where((item) => item.role == ActionRegionSlotRole.action).toList();
 
-  static AnimatedActionRegionItem<T>? _overflow<T extends Object>(
-    List<AnimatedActionRegionItem<T>> items,
+  static ActionRegionSlot<T>? _overflow<T extends Object>(
+    List<ActionRegionSlot<T>> items,
   ) {
     for (final item in items) {
-      if (item.role == AnimatedActionRegionItemRole.overflow) {
+      if (item.role == ActionRegionSlotRole.overflow) {
         return item;
       }
     }
@@ -381,8 +366,8 @@ final class _ActionRegionTransition<T extends Object> {
   }
 
   static int _removalSlotIndex<T extends Object>(
-    AnimatedActionRegionItem<T> selected,
-    List<AnimatedActionRegionItem<T>> oldActions,
+    ActionRegionSlot<T> selected,
+    List<ActionRegionSlot<T>> oldActions,
     Set<Object> targetIds,
   ) {
     var index = 0;
@@ -398,19 +383,19 @@ final class _ActionRegionTransition<T extends Object> {
   }
 
   static double _totalWidth<T extends Object>(
-    List<AnimatedActionRegionItem<T>> items,
-  ) => items.fold<double>(0, (width, item) => width + item.width);
+    List<ActionRegionSlot<T>> items,
+  ) => items.fold<double>(0, (width, item) => width + item.totalExtent);
 
   static bool _sameEndpoint<T extends Object>(
-    AnimatedActionRegionItem<T>? first,
-    AnimatedActionRegionItem<T>? second,
+    ActionRegionSlot<T>? first,
+    ActionRegionSlot<T>? second,
   ) {
     if (first == null || second == null) {
       return first == null && second == null;
     }
     return first.id == second.id &&
         first.variant == second.variant &&
-        first.width == second.width;
+        first.minimumExtent == second.minimumExtent;
   }
 }
 
@@ -420,14 +405,20 @@ final class _ActionRegionVariantSnapshot<T extends Object> {
     required this.to,
     required this.fadeProgress,
     required this.resizeProgress,
-    required this.width,
+    required this.leadingExtent,
+    required this.actionExtent,
+    required this.trailingExtent,
   });
 
-  final AnimatedActionRegionItem<T> from;
-  final AnimatedActionRegionItem<T> to;
+  final ActionRegionSlot<T> from;
+  final ActionRegionSlot<T> to;
   final double fadeProgress;
   final double resizeProgress;
-  final double width;
+  final double leadingExtent;
+  final double actionExtent;
+  final double trailingExtent;
+
+  double get width => leadingExtent + actionExtent + trailingExtent;
 }
 
 final class _ActionRegionTargetItem<T extends Object> extends StatelessWidget {
@@ -437,12 +428,41 @@ final class _ActionRegionTargetItem<T extends Object> extends StatelessWidget {
     required this.height,
   });
 
-  final AnimatedActionRegionItem<T> item;
+  final ActionRegionSlot<T> item;
   final double height;
 
   @override
   Widget build(BuildContext context) =>
-      SizedBox(width: item.width, height: height, child: item.child);
+      _ActionRegionSlotFrame<T>(item: item, height: height, child: item.child);
+}
+
+final class _ActionRegionSlotFrame<T extends Object> extends StatelessWidget {
+  const _ActionRegionSlotFrame({
+    required this.item,
+    required this.height,
+    required this.child,
+  });
+
+  final ActionRegionSlot<T> item;
+  final double height;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: item.totalExtent,
+    height: height,
+    child: Padding(
+      padding: EdgeInsetsDirectional.only(
+        start: item.leadingExtent,
+        end: item.trailingExtent,
+      ),
+      child: SizedBox(
+        width: item.effectiveExtent,
+        height: height,
+        child: child,
+      ),
+    ),
+  );
 }
 
 final class _ActionRegionTransitionView<T extends Object>
@@ -526,8 +546,8 @@ final class _ActionRegionVariantSlot<T extends Object> extends StatelessWidget {
     required this.builder,
   });
 
-  final AnimatedActionRegionItem<T> from;
-  final AnimatedActionRegionItem<T> to;
+  final ActionRegionSlot<T> from;
+  final ActionRegionSlot<T> to;
   final Animation<double> fadeProgress;
   final Animation<double> resizeProgress;
   final double height;
@@ -539,13 +559,37 @@ final class _ActionRegionVariantSlot<T extends Object> extends StatelessWidget {
     return AnimatedBuilder(
       animation: resizeProgress,
       child: child,
-      builder: (context, child) => ClipRect(
-        child: SizedBox(
-          width: _lerp(from.width, to.width, resizeProgress.value),
-          height: height,
-          child: child,
-        ),
-      ),
+      builder: (context, child) {
+        final progress = resizeProgress.value;
+        final leading = _lerp(from.leadingExtent, to.leadingExtent, progress);
+        final trailing = _lerp(
+          from.trailingExtent,
+          to.trailingExtent,
+          progress,
+        );
+        final actionExtent = _lerp(
+          from.effectiveExtent,
+          to.effectiveExtent,
+          progress,
+        );
+        return ClipRect(
+          child: SizedBox(
+            width: leading + actionExtent + trailing,
+            height: height,
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                start: leading,
+                end: trailing,
+              ),
+              child: SizedBox(
+                width: actionExtent,
+                height: height,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -575,18 +619,48 @@ final class _ActionRegionStructuralSlot<T extends Object>
     final snapshot = transition.variantSnapshot;
     final from = transition.from;
     final to = transition.to;
-    final fromWidth = snapshot?.width ?? from?.width ?? 0;
-    final toWidth = to?.width ?? 0;
+    final targetLeading = to?.leadingExtent ?? 0;
+    final targetTrailing = to?.trailingExtent ?? 0;
+    final fromActionExtent =
+        snapshot?.actionExtent ?? from?.effectiveExtent ?? 0;
+    final fromWidth = targetLeading + fromActionExtent + targetTrailing;
+    final toWidth = to?.totalExtent ?? 0;
     final fromChild = snapshot == null
-        ? from?.child
-        : variantBuilder?.call(
-            context,
-            snapshot.from,
-            snapshot.to,
-            AlwaysStoppedAnimation<double>(snapshot.fadeProgress),
-            AlwaysStoppedAnimation<double>(snapshot.resizeProgress),
+        ? from == null
+              ? null
+              : _ActionRegionSlotFrame<T>(
+                  item: from.withAllocation(
+                    allocatedExtent: from.effectiveExtent,
+                    leadingExtent: targetLeading,
+                    trailingExtent: targetTrailing,
+                  ),
+                  height: height,
+                  child: from.child,
+                )
+        : SizedBox(
+            width: fromWidth,
+            height: height,
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                start: targetLeading,
+                end: targetTrailing,
+              ),
+              child: SizedBox(
+                width: snapshot.actionExtent,
+                height: height,
+                child: variantBuilder?.call(
+                  context,
+                  snapshot.from,
+                  snapshot.to,
+                  AlwaysStoppedAnimation<double>(snapshot.fadeProgress),
+                  AlwaysStoppedAnimation<double>(snapshot.resizeProgress),
+                ),
+              ),
+            ),
           );
-    final toChild = to?.child;
+    final toChild = to == null
+        ? null
+        : _ActionRegionSlotFrame<T>(item: to, height: height, child: to.child);
 
     return AnimatedBuilder(
       animation: progress,
