@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0
+
+> **Breaking change:** Action-region composition now uses package-owned slot
+> and layout-plan contracts. Custom integrations that imported unsupported
+> `package:adaptive_actions/src/widgets/...` internals must migrate to the
+> public APIs exported by `material.dart`, `cupertino.dart`, or
+> `adaptive_actions.dart`. Existing supported constructors retain their
+> default compact behavior.
+
+- Added compact, space-between, space-around, and space-evenly single-region
+  distributions shared by Material and Cupertino renderers.
+- Added two-stage layout delegates for fixed and flexible action slots and
+  gaps, including immutable plans, validation, and fixed pre-resolution
+  reservations.
+- Preserved one Core resolution per layout pass while exposing final tight
+  action widths to custom button builders.
+- Expanded the example and regression coverage for custom gaps, resize
+  animation, overflow, unbounded constraints, and LTR/RTL placement.
+
 ## 0.2.2
 
 - Deferred Cupertino menu action callbacks to at least the next frame so they
