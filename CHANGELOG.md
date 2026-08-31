@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Kept Material and Cupertino action icon geometry independent from text
+  scaling while continuing to scale label measurement and rendering.
+
 ## 0.4.0
 
 - Added independent single-line label width and overflow policies for each
