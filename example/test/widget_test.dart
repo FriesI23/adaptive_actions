@@ -1029,48 +1029,88 @@ void main() {
         )
         .toList();
     expect(appleRenderers, hasLength(2));
+    final bottomToolbarRenderer = tester
+        .widget<CupertinoAdaptiveActions<DemoCommand>>(
+          find.descendant(
+            of: find.byKey(appBarActionsKey),
+            matching: find.byType(CupertinoAdaptiveActions<DemoCommand>),
+          ),
+        );
+    final applePreviewRenderer = tester
+        .widget<CupertinoAdaptiveActions<DemoCommand>>(
+          find.descendant(
+            of: find.byKey(previewActionsKey),
+            matching: find.byType(CupertinoAdaptiveActions<DemoCommand>),
+          ),
+        );
     expect(
-      identical(appleRenderers.first.actions, appleRenderers.last.actions),
-      isTrue,
+      bottomToolbarRenderer.actions.roots.take(
+        applePreviewRenderer.actions.roots.length,
+      ),
+      applePreviewRenderer.actions.roots,
     );
     expect(
-      appleRenderers.first.primaryCapacity,
-      appleRenderers.last.primaryCapacity,
+      bottomToolbarRenderer.actions.roots.last.id,
+      ActionId('language-preferences'),
     );
     expect(
-      appleRenderers.first.primaryOrderOverride,
+      bottomToolbarRenderer.actions.roots.last.metadata.label,
+      'Language preferences',
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(appBarActionsKey),
+        matching: find.text('Language preferences'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      bottomToolbarRenderer
+          .labelLayoutForAction!(
+            tester.element(find.byKey(appBarActionsKey)),
+            bottomToolbarRenderer.actions.roots.last,
+          )
+          .maxWidth,
+      isNull,
+    );
+    expect(
+      bottomToolbarRenderer.primaryCapacity,
+      applePreviewRenderer.primaryCapacity,
+    );
+    expect(
+      applePreviewRenderer.primaryOrderOverride,
       orderedEquals([ActionId('share'), ActionId('open')]),
     );
     expect(
-      appleRenderers.first.overflowOrderOverride,
+      applePreviewRenderer.overflowOrderOverride,
       orderedEquals([ActionId('delete'), ActionId('share')]),
     );
     expect(
-      appleRenderers.first.actions.roots.map((action) => action.id),
+      applePreviewRenderer.actions.roots.map((action) => action.id),
       materialRenderers.first.actions.roots.map((action) => action.id),
     );
     expect(
-      appleRenderers.first.actions.roots.take(5),
+      applePreviewRenderer.actions.roots.take(5),
       materialRenderers.first.actions.roots.take(5),
     );
     expect(
       identical(
-        appleRenderers.first.resolver,
+        applePreviewRenderer.resolver,
         materialRenderers.first.resolver,
       ),
       isTrue,
     );
     expect(
-      appleRenderers.first.fadeDuration,
+      applePreviewRenderer.fadeDuration,
       materialRenderers.first.fadeDuration,
     );
     expect(
-      appleRenderers.first.resizeDuration,
+      applePreviewRenderer.resizeDuration,
       materialRenderers.first.resizeDuration,
     );
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(
-      appleRenderers.first.actions.roots.map((action) => action.metadata.label),
+      applePreviewRenderer.actions.roots.map((action) => action.metadata.label),
       containsAll(['Switch to Material', 'Switch to dark theme', 'Use RTL']),
     );
 
@@ -1094,6 +1134,129 @@ void main() {
     expect(
       find.descendant(of: invocationRow, matching: find.text('Open')),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('localized label controls rebuild action geometry inputs', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const AdaptiveActionsExampleApp());
+    await tester.pumpAndSettle();
+
+    final scrollable = find
+        .descendant(
+          of: find.byKey(previewListKey),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(actionLanguageSelectorKey),
+      300,
+      scrollable: scrollable,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(actionLanguageSelectorKey)),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(actionLanguageSelectorKey));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('中文').last);
+    await tester.pumpAndSettle();
+
+    final renderer = tester.widget<MaterialAdaptiveActions<DemoCommand>>(
+      find.byKey(localizedComparisonActionsKey),
+    );
+    expect(
+      renderer.actions.roots
+          .firstWhere((action) => action.id == ActionId('manage-subscriptions'))
+          .metadata
+          .label,
+      '管理订阅',
+    );
+    expect(
+      renderer.actions.roots
+          .firstWhere((action) => action.id == ActionId('download-offline'))
+          .metadata
+          .label,
+      '离线下载',
+    );
+    final languagePreferences = renderer.actions.roots.firstWhere(
+      (action) => action.id == ActionId('language-preferences'),
+    );
+    expect(languagePreferences.metadata.label, '语言设置');
+    expect(
+      find.descendant(
+        of: find.byKey(localizedComparisonActionsKey),
+        matching: find.text('语言设置'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      renderer
+          .labelLayoutForAction!(
+            tester.element(find.byKey(localizedComparisonActionsKey)),
+            renderer.actions.roots.firstWhere(
+              (action) => action.id == ActionId('manage-subscriptions'),
+            ),
+          )
+          .maxWidth,
+      112,
+    );
+    expect(
+      renderer
+          .labelLayoutForAction!(
+            tester.element(find.byKey(localizedComparisonActionsKey)),
+            renderer.actions.roots.firstWhere(
+              (action) => action.id == ActionId('download-offline'),
+            ),
+          )
+          .maxWidth,
+      88,
+    );
+    expect(
+      renderer
+          .labelLayoutForAction!(
+            tester.element(find.byKey(localizedComparisonActionsKey)),
+            languagePreferences,
+          )
+          .maxWidth,
+      isNull,
+    );
+    expect(
+      Localizations.localeOf(tester.element(find.byKey(appBarActionsKey))),
+      const Locale('zh'),
+    );
+
+    await tester.ensureVisible(find.byKey(textScaleSliderKey));
+    await tester.drag(find.byKey(textScaleSliderKey), const Offset(500, 0));
+    await tester.pumpAndSettle();
+    final scaler = MediaQuery.textScalerOf(
+      tester.element(find.byKey(appBarActionsKey)),
+    );
+    expect(scaler.scale(10), 20);
+
+    await invokeDemoControl(
+      tester,
+      label: 'Switch to Apple',
+      useCupertino: false,
+    );
+    final bottomToolbarRenderer = tester
+        .widget<CupertinoAdaptiveActions<DemoCommand>>(
+          find.descendant(
+            of: find.byKey(appBarActionsKey),
+            matching: find.byType(CupertinoAdaptiveActions<DemoCommand>),
+          ),
+        );
+    expect(bottomToolbarRenderer.actions.roots.last.metadata.label, '语言设置');
+    expect(
+      bottomToolbarRenderer
+          .labelLayoutForAction!(
+            tester.element(find.byKey(appBarActionsKey)),
+            bottomToolbarRenderer.actions.roots.last,
+          )
+          .maxWidth,
+      isNull,
     );
   });
 

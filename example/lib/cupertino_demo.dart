@@ -140,6 +140,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
       presentationForAction: presentation == DemoPresentation.mixed
           ? _cupertinoMixedPresentationForAction
           : null,
+      labelLayoutForAction: _cupertinoLabelLayoutForAction,
       presentationOverride: _cupertinoPresentationOverride(presentation),
       onInvoke: onInvoke,
       iconBuilder: _cupertinoIconBuilder,
@@ -167,6 +168,22 @@ CupertinoActionPresentation? _cupertinoPresentationOverride(
   DemoPresentation.extended => CupertinoActionPresentation.extended,
   DemoPresentation.iconOnly => CupertinoActionPresentation.iconOnly,
   DemoPresentation.automatic || DemoPresentation.mixed => null,
+};
+
+ActionLabelLayout _cupertinoLabelLayoutForAction<T extends Object>(
+  BuildContext context,
+  AdaptiveAction<T> action,
+) => switch (action.id.value) {
+  'manage-subscriptions' => const ActionLabelLayout(
+    maxWidth: 112,
+    overflow: TextOverflow.ellipsis,
+  ),
+  'download-offline' => const ActionLabelLayout(
+    maxWidth: 88,
+    overflow: TextOverflow.fade,
+  ),
+  'language-preferences' => const ActionLabelLayout(),
+  _ => const ActionLabelLayout(),
 };
 
 CupertinoActionPresentation? _cupertinoMixedPresentationForAction<
@@ -219,6 +236,9 @@ Widget _cupertinoActionButtonBuilder<T extends Object>(
       onPressed: onPressed,
       child: Icon(
         CupertinoIcons.delete_solid,
+        size: MediaQuery.textScalerOf(
+          context,
+        ).scale(const CupertinoAdaptiveActionsStyle().iconSize),
         color: CupertinoColors.systemRed.resolveFrom(context),
       ),
     ),
@@ -276,6 +296,8 @@ Widget? _cupertinoIconBuilder<T extends Object>(
   'email' => const Icon(CupertinoIcons.mail),
   'delete' => const Icon(CupertinoIcons.delete),
   'help' => const Icon(CupertinoIcons.question_circle),
+  'subscriptions' => const Icon(CupertinoIcons.rectangle_stack),
+  'download' => const Icon(CupertinoIcons.arrow_down_circle),
   'renderer' => const Icon(CupertinoIcons.device_phone_portrait),
   'theme-dark' => const Icon(CupertinoIcons.moon),
   'theme-light' => const Icon(CupertinoIcons.sun_max),

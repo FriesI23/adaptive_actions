@@ -3,6 +3,16 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('action label layouts validate optional finite widths', () {
+    expect(const ActionLabelLayout().maxWidth, isNull);
+    expect(const ActionLabelLayout().overflow, TextOverflow.ellipsis);
+    expect(() => ActionLabelLayout(maxWidth: -1), throwsAssertionError);
+    expect(
+      () => ActionLabelLayout(maxWidth: double.infinity),
+      throwsAssertionError,
+    );
+  });
+
   test('layout inputs and plans defensively copy caller collections', () {
     final actionIds = [ActionId('a')];
     final reservationInput = ActionRegionLayoutReservationInput(

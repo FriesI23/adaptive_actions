@@ -25,10 +25,13 @@ const materialPresentationSelectorKey = ValueKey(
 const cupertinoPresentationSelectorKey = ValueKey(
   'cupertino-presentation-selector',
 );
+const actionLanguageSelectorKey = ValueKey('action-language-selector');
+const textScaleSliderKey = ValueKey('text-scale-slider');
 const previewListKey = ValueKey('preview-list');
 const appBarActionFrameKey = ValueKey('app-bar-action-frame');
 const appBarActionsKey = ValueKey('app-bar-actions');
 const previewActionsKey = ValueKey('preview-actions');
+const localizedComparisonActionsKey = ValueKey('localized-comparison-actions');
 
 const double? defaultSimulatedMaxActionWidth = null;
 const minimumActionWidth = 48.0;
@@ -51,6 +54,20 @@ final class DemoPresentationValues {
 }
 
 enum DemoPresentation { automatic, extended, iconOnly, mixed }
+
+enum DemoActionLanguage { english, chinese }
+
+extension DemoActionLanguageValue on DemoActionLanguage {
+  String get label => switch (this) {
+    DemoActionLanguage.english => 'English',
+    DemoActionLanguage.chinese => '中文',
+  };
+
+  String get languageCode => switch (this) {
+    DemoActionLanguage.english => 'en',
+    DemoActionLanguage.chinese => 'zh',
+  };
+}
 
 enum DemoActionRegionLayout {
   compact,

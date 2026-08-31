@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core.dart';
@@ -83,6 +85,10 @@ typedef MaterialActionPresentationCallback<T extends Object> =
       AdaptiveAction<T> action,
     );
 
+/// Selects the single-line label layout for one Material root action.
+typedef MaterialActionLabelLayoutCallback<T extends Object> =
+    ActionLabelLayout Function(BuildContext context, AdaptiveAction<T> action);
+
 /// Visual and layout configuration used by [MaterialAdaptiveActions].
 ///
 /// These values describe renderer-owned Material geometry. They affect both
@@ -165,7 +171,10 @@ final class MaterialAdaptiveActionsStyle {
   /// ```
   final double overflowButtonWidth;
 
-  /// The Material icon size used by primary buttons.
+  /// The base Material icon size used by primary buttons.
+  ///
+  /// The ambient [TextScaler] scales this value before rendering and before
+  /// the renderer submits the action's layout cost to Core.
   ///
   /// ```text
   /// iconSize: 16    [ s ]
@@ -283,6 +292,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     required this.overflowIcon,
     this.overflowTooltip = '',
     this.presentationForAction,
+    this.labelLayoutForAction,
     this.presentationOverride,
     this.style = const MaterialAdaptiveActionsStyle(),
     this.menuAnimationEnabled = true,
@@ -315,6 +325,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.actionButtonBuilder,
     this.overflowButtonBuilder,
     this.presentationForAction,
+    this.labelLayoutForAction,
     this.presentationOverride,
     this.style = const MaterialAdaptiveActionsStyle(),
     this.overflowIcon = const Icon(Icons.more_vert),
@@ -413,6 +424,12 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
   /// `null` result falls back to [presentationOverride], then to automatic
   /// layout selection when the global override is also `null`.
   final MaterialActionPresentationCallback<T>? presentationForAction;
+
+  /// Selects an independent label width and overflow policy for each action.
+  ///
+  /// Actions for which this callback is absent use an unconstrained,
+  /// single-line label.
+  final MaterialActionLabelLayoutCallback<T>? labelLayoutForAction;
 
   /// Forces one Material primary-button presentation for every root action.
   ///
@@ -556,29 +573,43 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     );
   }
 
-  Map<ActionId, _MaterialActionVisual<T>> _buildVisuals(BuildContext context) =>
-      {
-        for (final action in actions.roots)
-          action.id: _MaterialActionVisual(
-            action: action,
-            icon: iconBuilder?.call(context, action),
-            labelWidth: _labelWidth(context, action.metadata.label),
-            presentationOverride:
-                presentationForAction?.call(context, action) ??
-                presentationOverride,
-            style: style,
-          ),
-      };
+  Map<ActionId, _MaterialActionVisual<T>> _buildVisuals(BuildContext context) {
+    final visuals = <ActionId, _MaterialActionVisual<T>>{};
+    for (final action in actions.roots) {
+      final labelLayout =
+          labelLayoutForAction?.call(context, action) ??
+          const ActionLabelLayout();
+      visuals[action.id] = _MaterialActionVisual(
+        action: action,
+        icon: iconBuilder?.call(context, action),
+        labelLayout: labelLayout,
+        labelWidth: _labelWidth(context, action.metadata.label, labelLayout),
+        iconSize: MediaQuery.textScalerOf(context).scale(style.iconSize),
+        presentationOverride:
+            presentationForAction?.call(context, action) ??
+            presentationOverride,
+        style: style,
+      );
+    }
+    return visuals;
+  }
 
-  double _labelWidth(BuildContext context, String label) {
+  double _labelWidth(
+    BuildContext context,
+    String label,
+    ActionLabelLayout labelLayout,
+  ) {
     final painter = TextPainter(
       text: TextSpan(
         text: label,
         style: Theme.of(context).textTheme.labelLarge,
       ),
       textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
       maxLines: 1,
-    )..layout();
+      ellipsis: labelLayout.overflow == TextOverflow.ellipsis ? '\u2026' : null,
+    )..layout(maxWidth: labelLayout.maxWidth ?? double.infinity);
     return painter.width;
   }
 }
@@ -1336,12 +1367,12 @@ final class _MaterialActionButton<T extends Object> extends StatelessWidget {
       return Tooltip(
         message: tooltip,
         child: SizedBox(
-          width: style.iconButtonWidth,
+          width: _invokeWidth(optionId),
           height: style.height,
           child: IconButton(
             style: _kCompactIconButtonStyle,
             icon: visual.icon!,
-            iconSize: style.iconSize,
+            iconSize: visual.iconSize,
             color: action.metadata.isDestructive
                 ? Theme.of(context).colorScheme.error
                 : null,
@@ -1354,7 +1385,11 @@ final class _MaterialActionButton<T extends Object> extends StatelessWidget {
     final textStyle = action.metadata.isDestructive
         ? TextStyle(color: Theme.of(context).colorScheme.error)
         : null;
-    final label = Text(action.metadata.label, style: textStyle);
+    final label = _MaterialPrimaryLabel(
+      label: action.metadata.label,
+      layout: visual.labelLayout,
+      textStyle: textStyle,
+    );
     final child = visual.icon == null
         ? label
         : Row(
@@ -1365,7 +1400,7 @@ final class _MaterialActionButton<T extends Object> extends StatelessWidget {
                   end: style.iconLabelSpacing,
                 ),
                 child: IconTheme.merge(
-                  data: IconThemeData(size: style.iconSize),
+                  data: IconThemeData(size: visual.iconSize),
                   child: visual.icon!,
                 ),
               ),
@@ -1385,6 +1420,12 @@ final class _MaterialActionButton<T extends Object> extends StatelessWidget {
         child: child,
       ),
     );
+  }
+
+  double _invokeWidth(ActionLayoutOptionId optionId) {
+    final total = visual.costFor(optionId);
+    final isComposite = action.payload != null && action.children.isNotEmpty;
+    return isComposite ? total - style.submenuButtonWidth : total;
   }
 }
 
@@ -1444,7 +1485,7 @@ final class _AnimatedMaterialActionButton<T extends Object>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconTheme.merge(
-                      data: IconThemeData(size: style.iconSize),
+                      data: IconThemeData(size: visual.iconSize),
                       child: visual.icon!,
                     ),
                     ClipRect(
@@ -1457,7 +1498,10 @@ final class _AnimatedMaterialActionButton<T extends Object>
                             padding: EdgeInsetsDirectional.only(
                               start: style.iconLabelSpacing,
                             ),
-                            child: Text(action.metadata.label),
+                            child: _MaterialPrimaryLabel(
+                              label: action.metadata.label,
+                              layout: visual.labelLayout,
+                            ),
                           ),
                         ),
                       ),
@@ -1479,17 +1523,50 @@ final class _AnimatedMaterialActionButton<T extends Object>
   }
 }
 
+final class _MaterialPrimaryLabel extends StatelessWidget {
+  const _MaterialPrimaryLabel({
+    required this.label,
+    required this.layout,
+    this.textStyle,
+  });
+
+  final String label;
+  final ActionLabelLayout layout;
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      label,
+      style: textStyle,
+      maxLines: 1,
+      softWrap: false,
+      overflow: layout.maxWidth == null ? null : layout.overflow,
+    );
+    final labelMaxWidth = layout.maxWidth;
+    return labelMaxWidth == null
+        ? text
+        : ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: labelMaxWidth),
+            child: text,
+          );
+  }
+}
+
 final class _MaterialActionVisual<T extends Object> {
   _MaterialActionVisual({
     required AdaptiveAction<T> action,
     required this.icon,
     required double labelWidth,
+    required this.labelLayout,
+    required this.iconSize,
     required MaterialActionPresentation? presentationOverride,
     required MaterialAdaptiveActionsStyle style,
   }) : _options = _buildOptions(
          action: action,
          icon: icon,
          labelWidth: labelWidth,
+         iconSize: iconSize,
          style: style,
        ) {
     final options = switch (presentationOverride) {
@@ -1503,6 +1580,8 @@ final class _MaterialActionVisual<T extends Object> {
   }
 
   final Widget? icon;
+  final ActionLabelLayout labelLayout;
+  final double iconSize;
   final ({ActionLayoutOption extended, ActionLayoutOption? iconOnly}) _options;
   late final ActionLayoutProfile profile;
 
@@ -1526,6 +1605,7 @@ final class _MaterialActionVisual<T extends Object> {
     required AdaptiveAction<T> action,
     required Widget? icon,
     required double labelWidth,
+    required double iconSize,
     required MaterialAdaptiveActionsStyle style,
   }) => (
     extended: ActionLayoutOption(
@@ -1533,6 +1613,7 @@ final class _MaterialActionVisual<T extends Object> {
       cost: _labelCost(
         labelWidth,
         hasIcon: icon != null,
+        iconSize: iconSize,
         isComposite: action.payload != null && action.children.isNotEmpty,
         style: style,
       ),
@@ -1543,6 +1624,7 @@ final class _MaterialActionVisual<T extends Object> {
             id: _materialIconOptionId,
             cost: _iconCost(
               isComposite: action.payload != null && action.children.isNotEmpty,
+              iconSize: iconSize,
               style: style,
             ),
           ),
@@ -1551,21 +1633,27 @@ final class _MaterialActionVisual<T extends Object> {
   static double _labelCost(
     double labelWidth, {
     required bool hasIcon,
+    required double iconSize,
     required bool isComposite,
     required MaterialAdaptiveActionsStyle style,
   }) {
     final invokeCost =
         (labelWidth +
                 style.horizontalPadding * 2 +
-                (hasIcon ? style.iconSize + style.iconLabelSpacing : 0))
+                (hasIcon ? iconSize + style.iconLabelSpacing : 0))
             .clamp(style.minimumButtonWidth, double.infinity);
     return isComposite ? invokeCost + style.submenuButtonWidth : invokeCost;
   }
 
   static double _iconCost({
     required bool isComposite,
+    required double iconSize,
     required MaterialAdaptiveActionsStyle style,
-  }) => isComposite
-      ? style.iconButtonWidth + style.submenuButtonWidth
-      : style.iconButtonWidth;
+  }) {
+    final invokeCost = math.max(
+      style.iconButtonWidth,
+      iconSize + style.horizontalPadding * 2,
+    );
+    return isComposite ? invokeCost + style.submenuButtonWidth : invokeCost;
+  }
 }

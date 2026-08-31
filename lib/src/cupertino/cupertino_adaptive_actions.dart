@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -120,6 +122,10 @@ typedef CupertinoActionPresentationCallback<T extends Object> =
       AdaptiveAction<T> action,
     );
 
+/// Selects the single-line label layout for one Cupertino root action.
+typedef CupertinoActionLabelLayoutCallback<T extends Object> =
+    ActionLabelLayout Function(BuildContext context, AdaptiveAction<T> action);
+
 /// Visual and layout configuration used by [CupertinoAdaptiveActions].
 ///
 /// These values describe renderer-owned Cupertino geometry. They affect both
@@ -201,7 +207,10 @@ final class CupertinoAdaptiveActionsStyle {
   /// ```
   final double overflowButtonWidth;
 
-  /// The Cupertino icon size used by primary buttons.
+  /// The base Cupertino icon size used by primary buttons.
+  ///
+  /// The ambient [TextScaler] scales this value before rendering and before
+  /// the renderer submits the action's layout cost to Core.
   ///
   /// ```text
   /// iconSize: 16    [ s ]
@@ -321,6 +330,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     required this.overflowIcon,
     this.overflowTooltip = '',
     this.presentationForAction,
+    this.labelLayoutForAction,
     this.presentationOverride,
     this.style = const CupertinoAdaptiveActionsStyle(),
     this.fadeDuration = const Duration(milliseconds: 200),
@@ -355,6 +365,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.onOverflowMenuClosed,
     this.invokeAfterMenuClosed = false,
     this.presentationForAction,
+    this.labelLayoutForAction,
     this.presentationOverride,
     this.style = const CupertinoAdaptiveActionsStyle(),
     this.overflowIcon = const Icon(CupertinoIcons.ellipsis),
@@ -468,6 +479,12 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
   /// `null` result falls back to [presentationOverride], then to automatic
   /// layout selection when the global override is also `null`.
   final CupertinoActionPresentationCallback<T>? presentationForAction;
+
+  /// Selects an independent label width and overflow policy for each action.
+  ///
+  /// Actions for which this callback is absent use an unconstrained,
+  /// single-line label.
+  final CupertinoActionLabelLayoutCallback<T>? labelLayoutForAction;
 
   /// Forces one Cupertino primary presentation for every root action.
   ///
@@ -615,30 +632,43 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     );
   }
 
-  Map<ActionId, _CupertinoActionVisual<T>> _buildVisuals(
-    BuildContext context,
-  ) => {
-    for (final action in actions.roots)
-      action.id: _CupertinoActionVisual<T>(
+  Map<ActionId, _CupertinoActionVisual<T>> _buildVisuals(BuildContext context) {
+    final visuals = <ActionId, _CupertinoActionVisual<T>>{};
+    for (final action in actions.roots) {
+      final labelLayout =
+          labelLayoutForAction?.call(context, action) ??
+          const ActionLabelLayout();
+      visuals[action.id] = _CupertinoActionVisual<T>(
         action: action,
         icon: iconBuilder?.call(context, action),
-        labelWidth: _labelWidth(context, action.metadata.label),
+        labelLayout: labelLayout,
+        labelWidth: _labelWidth(context, action.metadata.label, labelLayout),
+        iconSize: MediaQuery.textScalerOf(context).scale(style.iconSize),
         presentationOverride:
             presentationForAction?.call(context, action) ??
             presentationOverride,
         style: style,
-      ),
-  };
+      );
+    }
+    return visuals;
+  }
 
-  double _labelWidth(BuildContext context, String label) {
+  double _labelWidth(
+    BuildContext context,
+    String label,
+    ActionLabelLayout labelLayout,
+  ) {
     final painter = TextPainter(
       text: TextSpan(
         text: label,
         style: CupertinoTheme.of(context).textTheme.actionTextStyle,
       ),
       textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
       maxLines: 1,
-    )..layout();
+      ellipsis: labelLayout.overflow == TextOverflow.ellipsis ? '\u2026' : null,
+    )..layout(maxWidth: labelLayout.maxWidth ?? double.infinity);
     return painter.width;
   }
 }
@@ -1010,12 +1040,14 @@ final class _CupertinoActionButton<T extends Object> extends StatelessWidget {
         onPressed: action.isEnabled ? onPressed : null,
         child: optionId == _cupertinoIconOptionId
             ? IconTheme.merge(
-                data: IconThemeData(size: style.iconSize),
+                data: IconThemeData(size: visual.iconSize),
                 child: visual.icon!,
               )
             : _CupertinoExtendedContent<T>(
                 action: action,
                 icon: visual.icon,
+                iconSize: visual.iconSize,
+                labelLayout: visual.labelLayout,
                 style: style,
               ),
       ),
@@ -1081,7 +1113,7 @@ final class _AnimatedCupertinoActionButton<T extends Object>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconTheme.merge(
-                    data: IconThemeData(size: style.iconSize),
+                    data: IconThemeData(size: visual.iconSize),
                     child: visual.icon!,
                   ),
                   ClipRect(
@@ -1094,7 +1126,10 @@ final class _AnimatedCupertinoActionButton<T extends Object>
                           padding: EdgeInsetsDirectional.only(
                             start: style.iconLabelSpacing,
                           ),
-                          child: Text(action.metadata.label),
+                          child: _CupertinoPrimaryLabel(
+                            label: action.metadata.label,
+                            layout: visual.labelLayout,
+                          ),
                         ),
                       ),
                     ),
@@ -1120,30 +1155,64 @@ final class _CupertinoExtendedContent<T extends Object>
   const _CupertinoExtendedContent({
     required this.action,
     required this.icon,
+    required this.iconSize,
+    required this.labelLayout,
     required this.style,
   });
 
   final AdaptiveAction<T> action;
   final Widget? icon;
+  final double iconSize;
+  final ActionLabelLayout labelLayout;
   final CupertinoAdaptiveActionsStyle style;
 
   @override
   Widget build(BuildContext context) {
     final icon = this.icon;
     if (icon == null) {
-      return Text(action.metadata.label);
+      return _CupertinoPrimaryLabel(
+        label: action.metadata.label,
+        layout: labelLayout,
+      );
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         IconTheme.merge(
-          data: IconThemeData(size: style.iconSize),
+          data: IconThemeData(size: iconSize),
           child: icon,
         ),
         SizedBox(width: style.iconLabelSpacing),
-        Text(action.metadata.label),
+        _CupertinoPrimaryLabel(
+          label: action.metadata.label,
+          layout: labelLayout,
+        ),
       ],
     );
+  }
+}
+
+final class _CupertinoPrimaryLabel extends StatelessWidget {
+  const _CupertinoPrimaryLabel({required this.label, required this.layout});
+
+  final String label;
+  final ActionLabelLayout layout;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      label,
+      maxLines: 1,
+      softWrap: false,
+      overflow: layout.maxWidth == null ? null : layout.overflow,
+    );
+    final labelMaxWidth = layout.maxWidth;
+    return labelMaxWidth == null
+        ? text
+        : ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: labelMaxWidth),
+            child: text,
+          );
   }
 }
 
@@ -1567,12 +1636,15 @@ final class _CupertinoActionVisual<T extends Object> {
     required AdaptiveAction<T> action,
     required this.icon,
     required double labelWidth,
+    required this.labelLayout,
+    required this.iconSize,
     required CupertinoActionPresentation? presentationOverride,
     required CupertinoAdaptiveActionsStyle style,
   }) : _options = _buildOptions(
          action: action,
          icon: icon,
          labelWidth: labelWidth,
+         iconSize: iconSize,
          style: style,
        ) {
     final options = switch (presentationOverride) {
@@ -1586,6 +1658,8 @@ final class _CupertinoActionVisual<T extends Object> {
   }
 
   final Widget? icon;
+  final ActionLabelLayout labelLayout;
+  final double iconSize;
   final ({ActionLayoutOption extended, ActionLayoutOption? iconOnly}) _options;
   late final ActionLayoutProfile profile;
 
@@ -1609,6 +1683,7 @@ final class _CupertinoActionVisual<T extends Object> {
     required AdaptiveAction<T> action,
     required Widget? icon,
     required double labelWidth,
+    required double iconSize,
     required CupertinoAdaptiveActionsStyle style,
   }) => (
     extended: ActionLayoutOption(
@@ -1616,6 +1691,7 @@ final class _CupertinoActionVisual<T extends Object> {
       cost: _labelCost(
         labelWidth,
         hasIcon: icon != null,
+        iconSize: iconSize,
         isComposite: action.payload != null && action.children.isNotEmpty,
         style: style,
       ),
@@ -1626,6 +1702,7 @@ final class _CupertinoActionVisual<T extends Object> {
             id: _cupertinoIconOptionId,
             cost: _iconCost(
               isComposite: action.payload != null && action.children.isNotEmpty,
+              iconSize: iconSize,
               style: style,
             ),
           ),
@@ -1634,21 +1711,27 @@ final class _CupertinoActionVisual<T extends Object> {
   static double _labelCost(
     double labelWidth, {
     required bool hasIcon,
+    required double iconSize,
     required bool isComposite,
     required CupertinoAdaptiveActionsStyle style,
   }) {
     final invokeCost =
         (labelWidth +
                 style.horizontalPadding * 2 +
-                (hasIcon ? style.iconSize + style.iconLabelSpacing : 0))
+                (hasIcon ? iconSize + style.iconLabelSpacing : 0))
             .clamp(style.minimumButtonWidth, double.infinity);
     return isComposite ? invokeCost + style.submenuButtonWidth : invokeCost;
   }
 
   static double _iconCost({
     required bool isComposite,
+    required double iconSize,
     required CupertinoAdaptiveActionsStyle style,
-  }) => isComposite
-      ? style.iconButtonWidth + style.submenuButtonWidth
-      : style.iconButtonWidth;
+  }) {
+    final invokeCost = math.max(
+      style.iconButtonWidth,
+      iconSize + style.horizontalPadding * 2,
+    );
+    return isComposite ? invokeCost + style.submenuButtonWidth : invokeCost;
+  }
 }

@@ -68,6 +68,7 @@ void main() {
     MaterialActionButtonBuilder<String>? actionButtonBuilder,
     MaterialOverflowButtonBuilder? overflowButtonBuilder,
     MaterialActionPresentationCallback<String>? presentationForAction,
+    MaterialActionLabelLayoutCallback<String>? labelLayoutForAction,
     MaterialActionPresentation? presentationOverride,
     MaterialAdaptiveActionsStyle style = const MaterialAdaptiveActionsStyle(),
     ActionLayoutResolver resolver = const ActionLayoutResolver(),
@@ -80,7 +81,12 @@ void main() {
     ActionRegionMainAxisDistribution distribution =
         ActionRegionMainAxisDistribution.compact,
     ActionRegionLayoutDelegate? layoutDelegate,
+    TextScaler textScaler = TextScaler.noScaling,
   }) => MaterialApp(
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+      child: child!,
+    ),
     home: Scaffold(
       body: MaterialAdaptiveActions<String>.moreAction(
         actions: actions,
@@ -92,6 +98,7 @@ void main() {
         actionButtonBuilder: actionButtonBuilder,
         overflowButtonBuilder: overflowButtonBuilder,
         presentationForAction: presentationForAction,
+        labelLayoutForAction: labelLayoutForAction,
         presentationOverride: presentationOverride,
         style: style,
         resolver: resolver,
@@ -117,6 +124,81 @@ void main() {
         'help' => const Icon(Icons.help_outline),
         _ => null,
       };
+
+  testWidgets('scales primary text and icons before resolving layout', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save', iconKey: 'save');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 140,
+        iconBuilder: iconBuilder,
+      ),
+    );
+    expect(find.text('Save'), findsOneWidget);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 140,
+        iconBuilder: iconBuilder,
+        textScaler: const TextScaler.linear(2),
+      ),
+    );
+
+    expect(find.text('Save'), findsNothing);
+    final iconContext = tester.element(find.byIcon(Icons.save));
+    expect(IconTheme.of(iconContext).size, 36);
+    expect(
+      tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
+      60,
+    );
+  });
+
+  testWidgets('configures single-line overflow independently per action', (
+    tester,
+  ) async {
+    final save = action(
+      'save',
+      label: 'Save this document with a deliberately long label',
+    );
+    final share = action(
+      'share',
+      label: 'Share this document with another deliberately long label',
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save, share]),
+        onInvoke: (_) {},
+        width: 300,
+        presentationOverride: MaterialActionPresentation.extended,
+        labelLayoutForAction: (context, action) => switch (action.id.value) {
+          'save' => const ActionLabelLayout(
+            maxWidth: 72,
+            overflow: TextOverflow.fade,
+          ),
+          _ => const ActionLabelLayout(
+            maxWidth: 96,
+            overflow: TextOverflow.clip,
+          ),
+        },
+      ),
+    );
+
+    final label = tester.widget<Text>(find.text(save.metadata.label));
+    expect(label.maxLines, 1);
+    expect(label.softWrap, isFalse);
+    expect(label.overflow, TextOverflow.fade);
+    expect(tester.getSize(find.text(save.metadata.label)).width, 72);
+    final shareLabel = tester.widget<Text>(find.text(share.metadata.label));
+    expect(shareLabel.overflow, TextOverflow.clip);
+    expect(tester.getSize(find.text(share.metadata.label)).width, 96);
+  });
 
   test('constructors keep generic and More overflow semantics separate', () {
     final actions = ActionCollection<String>(roots: []);

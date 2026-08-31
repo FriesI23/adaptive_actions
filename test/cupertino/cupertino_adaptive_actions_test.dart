@@ -80,6 +80,7 @@ void main() {
     CupertinoActionButtonBuilder<String>? actionButtonBuilder,
     CupertinoOverflowButtonBuilder? overflowButtonBuilder,
     CupertinoActionPresentationCallback<String>? presentationForAction,
+    CupertinoActionLabelLayoutCallback<String>? labelLayoutForAction,
     CupertinoActionPresentation? presentationOverride,
     CupertinoAdaptiveActionsStyle style = const CupertinoAdaptiveActionsStyle(),
     int? maxPrimaryActions,
@@ -95,7 +96,12 @@ void main() {
     ActionRegionMainAxisDistribution distribution =
         ActionRegionMainAxisDistribution.compact,
     ActionRegionLayoutDelegate? layoutDelegate,
+    TextScaler textScaler = TextScaler.noScaling,
   }) => CupertinoApp(
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+      child: child!,
+    ),
     theme: CupertinoThemeData(
       brightness: brightness,
       primaryColor: testPrimaryColor,
@@ -112,6 +118,7 @@ void main() {
           actionButtonBuilder: actionButtonBuilder,
           overflowButtonBuilder: overflowButtonBuilder,
           presentationForAction: presentationForAction,
+          labelLayoutForAction: labelLayoutForAction,
           presentationOverride: presentationOverride,
           style: style,
           maxPrimaryActions: maxPrimaryActions,
@@ -129,6 +136,81 @@ void main() {
       ),
     ),
   );
+
+  testWidgets('scales primary text and icons before resolving layout', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save', iconKey: 'save');
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 140,
+        actionIconBuilder: iconBuilder,
+      ),
+    );
+    expect(find.text('Save'), findsOneWidget);
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save]),
+        onInvoke: (_) {},
+        width: 140,
+        actionIconBuilder: iconBuilder,
+        textScaler: const TextScaler.linear(2),
+      ),
+    );
+
+    expect(find.text('Save'), findsNothing);
+    final iconContext = tester.element(find.byIcon(CupertinoIcons.floppy_disk));
+    expect(IconTheme.of(iconContext).size, 40);
+    expect(
+      tester.getSize(find.byType(CupertinoAdaptiveActions<String>)).width,
+      60,
+    );
+  });
+
+  testWidgets('configures single-line overflow independently per action', (
+    tester,
+  ) async {
+    final save = action(
+      'save',
+      label: 'Save this document with a deliberately long label',
+    );
+    final share = action(
+      'share',
+      label: 'Share this document with another deliberately long label',
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save, share]),
+        onInvoke: (_) {},
+        width: 300,
+        presentationOverride: CupertinoActionPresentation.extended,
+        labelLayoutForAction: (context, action) => switch (action.id.value) {
+          'save' => const ActionLabelLayout(
+            maxWidth: 72,
+            overflow: TextOverflow.fade,
+          ),
+          _ => const ActionLabelLayout(
+            maxWidth: 96,
+            overflow: TextOverflow.clip,
+          ),
+        },
+      ),
+    );
+
+    final label = tester.widget<Text>(find.text(save.metadata.label));
+    expect(label.maxLines, 1);
+    expect(label.softWrap, isFalse);
+    expect(label.overflow, TextOverflow.fade);
+    expect(tester.getSize(find.text(save.metadata.label)).width, 72);
+    final shareLabel = tester.widget<Text>(find.text(share.metadata.label));
+    expect(shareLabel.overflow, TextOverflow.clip);
+    expect(tester.getSize(find.text(share.metadata.label)).width, 96);
+  });
 
   test('constructors keep generic and More overflow semantics separate', () {
     final actions = ActionCollection<String>(roots: []);

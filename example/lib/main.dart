@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:adaptive_actions/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'cupertino_demo.dart';
 import 'demo_dialogs.dart';
@@ -84,6 +85,9 @@ enum DemoCommand {
   toggleRenderer,
   toggleTheme,
   toggleTextDirection,
+  manageSubscriptions,
+  downloadOffline,
+  languagePreferences,
 }
 
 extension DemoCommandLabel on DemoCommand {
@@ -99,6 +103,9 @@ extension DemoCommandLabel on DemoCommand {
     DemoCommand.toggleRenderer => 'Toggle renderer',
     DemoCommand.toggleTheme => 'Toggle theme',
     DemoCommand.toggleTextDirection => 'Toggle text direction',
+    DemoCommand.manageSubscriptions => 'Manage subscriptions',
+    DemoCommand.downloadOffline => 'Download for offline use',
+    DemoCommand.languagePreferences => 'Language preferences',
   };
 }
 
@@ -138,6 +145,8 @@ final class _AdaptiveActionsDemoPageState
   Duration _resizeDuration = _kActionsAnimationDuration;
   bool _centerTitle = false;
   bool _rightToLeft = false;
+  DemoActionLanguage _actionLanguage = DemoActionLanguage.english;
+  double _textScale = 1;
   String _lastInvocation = 'None';
 
   @override
@@ -181,33 +190,44 @@ final class _AdaptiveActionsDemoPageState
       showDesktopMenu: showDesktopMenu,
     );
 
-    return Directionality(
-      textDirection: _rightToLeft ? TextDirection.rtl : TextDirection.ltr,
-      child: switch (_renderer) {
-        DemoRenderer.material => _buildMaterialPage(
-          body: body,
-          actions: actions,
-          effectiveActionWidth: effectiveActionWidth,
+    final page = switch (_renderer) {
+      DemoRenderer.material => _buildMaterialPage(
+        body: body,
+        actions: actions,
+        effectiveActionWidth: effectiveActionWidth,
+      ),
+      DemoRenderer.apple => CupertinoDemoPage<DemoCommand>(
+        title: _kToolbarTitle,
+        body: body,
+        actions: _bottomToolbarActions(actions),
+        resolver: _resolver,
+        primaryOrderOverride: _primaryOrderOverride,
+        overflowOrderOverride: _overflowOrderOverride,
+        actionWidth: effectiveActionWidth,
+        actionHeight: _parentActionHeight,
+        maxPrimaryActions: _maxPrimaryActions,
+        presentation: _presentations.cupertino,
+        actionRegionLayout: _actionRegionLayout,
+        fadeDuration: _fadeDuration,
+        resizeDuration: _resizeDuration,
+        brightness: widget.brightness,
+        onInvoke: _onInvoke,
+        customOverflowButton: _customOverflowButton,
+      ),
+    };
+    return Localizations.override(
+      context: context,
+      locale: Locale(_actionLanguage.languageCode),
+      delegates: GlobalMaterialLocalizations.delegates,
+      child: MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(_textScale)),
+        child: Directionality(
+          textDirection: _rightToLeft ? TextDirection.rtl : TextDirection.ltr,
+          child: page,
         ),
-        DemoRenderer.apple => CupertinoDemoPage<DemoCommand>(
-          title: _kToolbarTitle,
-          body: body,
-          actions: actions,
-          resolver: _resolver,
-          primaryOrderOverride: _primaryOrderOverride,
-          overflowOrderOverride: _overflowOrderOverride,
-          actionWidth: effectiveActionWidth,
-          actionHeight: _parentActionHeight,
-          maxPrimaryActions: _maxPrimaryActions,
-          presentation: _presentations.cupertino,
-          actionRegionLayout: _actionRegionLayout,
-          fadeDuration: _fadeDuration,
-          resizeDuration: _resizeDuration,
-          brightness: widget.brightness,
-          onInvoke: _onInvoke,
-          customOverflowButton: _customOverflowButton,
-        ),
-      },
+      ),
     );
   }
 
@@ -284,6 +304,33 @@ final class _AdaptiveActionsDemoPageState
                 setState(() => _retention = retention),
             onDividerVisibilityChanged: (visibility) =>
                 setState(() => _dividerVisibility = visibility),
+          ),
+        ),
+        DemoSection(
+          title: 'Localized label environment',
+          useCupertino: useCupertino,
+          child: Column(
+            children: [
+              DemoLabelEnvironmentSettings(
+                renderer: _renderer,
+                language: _actionLanguage,
+                textScale: _textScale,
+                onLanguageChanged: (language) {
+                  if (language != null) {
+                    setState(() => _actionLanguage = language);
+                  }
+                },
+                onTextScaleChanged: (scale) =>
+                    setState(() => _textScale = scale),
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: _localizedComparisonRegion(
+                  actions: _localizedComparisonActions(),
+                ),
+              ),
+            ],
           ),
         ),
         DemoSection(
@@ -450,6 +497,7 @@ final class _AdaptiveActionsDemoPageState
             ? _materialOverflowButtonBuilder
             : null,
         overflowTooltip: 'More actions',
+        labelLayoutForAction: _materialLabelLayoutForAction,
         fadeDuration: _fadeDuration,
         resizeDuration: _resizeDuration,
         distribution: _actionRegionLayout.distribution,
@@ -644,6 +692,98 @@ final class _AdaptiveActionsDemoPageState
     ];
   }
 
+  ActionCollection<DemoCommand> _localizedComparisonActions() =>
+      ActionCollection(
+        roots: [
+          AdaptiveAction.action(
+            id: ActionId('manage-subscriptions'),
+            metadata: ActionMetadata(
+              label: _localizedComparisonLabel(DemoCommand.manageSubscriptions),
+              iconKey: 'subscriptions',
+            ),
+            payload: DemoCommand.manageSubscriptions,
+          ),
+          AdaptiveAction.action(
+            id: ActionId('download-offline'),
+            metadata: ActionMetadata(
+              label: _localizedComparisonLabel(DemoCommand.downloadOffline),
+              iconKey: 'download',
+            ),
+            payload: DemoCommand.downloadOffline,
+          ),
+          AdaptiveAction.action(
+            id: ActionId('language-preferences'),
+            metadata: ActionMetadata(
+              label: _localizedComparisonLabel(DemoCommand.languagePreferences),
+            ),
+            payload: DemoCommand.languagePreferences,
+          ),
+        ],
+      );
+
+  ActionCollection<DemoCommand> _bottomToolbarActions(
+    ActionCollection<DemoCommand> sharedActions,
+  ) => ActionCollection.withEntries(
+    entries: [
+      ...sharedActions.entries,
+      AdaptiveAction.action(
+        id: ActionId('language-preferences'),
+        metadata: ActionMetadata(
+          label: _localizedComparisonLabel(DemoCommand.languagePreferences),
+        ),
+        payload: DemoCommand.languagePreferences,
+        placementPolicy: ActionPlacementPolicy(
+          placement: ActionPlacement.pinned,
+        ),
+      ),
+    ],
+    placementConstraints: sharedActions.placementConstraints,
+  );
+
+  Widget _localizedComparisonRegion({
+    required ActionCollection<DemoCommand> actions,
+  }) => switch (_renderer) {
+    DemoRenderer.material => MaterialAdaptiveActions<DemoCommand>.moreAction(
+      key: localizedComparisonActionsKey,
+      actions: actions,
+      onInvoke: _onInvoke,
+      primaryCapacity: maximumSimulatedActionWidth,
+      iconBuilder: _materialIconBuilder,
+      labelLayoutForAction: _materialLabelLayoutForAction,
+      presentationForAction: _presentations.material == DemoPresentation.mixed
+          ? _materialMixedPresentationForAction
+          : null,
+      presentationOverride: _materialPresentationOverride(
+        _presentations.material,
+      ),
+      fadeDuration: _fadeDuration,
+      resizeDuration: _resizeDuration,
+    ),
+    DemoRenderer.apple => CupertinoDemoActions<DemoCommand>(
+      key: localizedComparisonActionsKey,
+      actions: actions,
+      resolver: const ActionLayoutResolver(),
+      primaryOrderOverride: const [],
+      overflowOrderOverride: const [],
+      actionWidth: maximumSimulatedActionWidth,
+      maxPrimaryActions: null,
+      presentation: _presentations.cupertino,
+      actionRegionLayout: DemoActionRegionLayout.compact,
+      fadeDuration: _fadeDuration,
+      resizeDuration: _resizeDuration,
+      onInvoke: _onInvoke,
+    ),
+  };
+
+  String _localizedComparisonLabel(DemoCommand command) =>
+      switch ((_actionLanguage, command)) {
+        (DemoActionLanguage.english, _) => command.label,
+        (DemoActionLanguage.chinese, DemoCommand.manageSubscriptions) => '管理订阅',
+        (DemoActionLanguage.chinese, DemoCommand.downloadOffline) => '离线下载',
+        (DemoActionLanguage.chinese, DemoCommand.languagePreferences) => '语言设置',
+        _ => command.label,
+      };
+
   void _onInvoke(DemoCommand command) {
     setState(() {
       _lastInvocation = command.label;
@@ -665,7 +805,10 @@ final class _AdaptiveActionsDemoPageState
             DemoCommand.shareLink ||
             DemoCommand.shareEmail ||
             DemoCommand.delete ||
-            DemoCommand.help:
+            DemoCommand.help ||
+            DemoCommand.manageSubscriptions ||
+            DemoCommand.downloadOffline ||
+            DemoCommand.languagePreferences:
           break;
       }
     });
@@ -725,6 +868,8 @@ Widget? _materialIconBuilder(
   'email' => const Icon(Icons.email),
   'delete' => const Icon(Icons.delete),
   'help' => const Icon(Icons.help_outline),
+  'subscriptions' => const Icon(Icons.subscriptions_outlined),
+  'download' => const Icon(Icons.download_for_offline_outlined),
   'renderer' => const Icon(Icons.widgets_outlined),
   'theme-dark' => const Icon(Icons.dark_mode_outlined),
   'theme-light' => const Icon(Icons.light_mode_outlined),
@@ -738,6 +883,22 @@ MaterialActionPresentation? _materialPresentationOverride(
   DemoPresentation.extended => MaterialActionPresentation.extended,
   DemoPresentation.iconOnly => MaterialActionPresentation.iconOnly,
   DemoPresentation.automatic || DemoPresentation.mixed => null,
+};
+
+ActionLabelLayout _materialLabelLayoutForAction(
+  BuildContext context,
+  AdaptiveAction<DemoCommand> action,
+) => switch (action.id.value) {
+  'manage-subscriptions' => const ActionLabelLayout(
+    maxWidth: 112,
+    overflow: TextOverflow.ellipsis,
+  ),
+  'download-offline' => const ActionLabelLayout(
+    maxWidth: 88,
+    overflow: TextOverflow.fade,
+  ),
+  'language-preferences' => const ActionLabelLayout(),
+  _ => const ActionLabelLayout(),
 };
 
 MaterialActionPresentation? _materialMixedPresentationForAction(
@@ -777,7 +938,9 @@ Widget _materialActionButtonBuilder(
     child: IconButton(
       tooltip: action.metadata.tooltip ?? action.metadata.label,
       color: Theme.of(context).colorScheme.error,
-      iconSize: const MaterialAdaptiveActionsStyle().iconSize,
+      iconSize: MediaQuery.textScalerOf(
+        context,
+      ).scale(const MaterialAdaptiveActionsStyle().iconSize),
       onPressed: onPressed,
       icon: const Icon(Icons.delete_forever_outlined),
     ),

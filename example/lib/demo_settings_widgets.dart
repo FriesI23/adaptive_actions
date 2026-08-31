@@ -369,6 +369,72 @@ final class DemoPresentationSettings extends StatelessWidget {
   };
 }
 
+final class DemoLabelEnvironmentSettings extends StatelessWidget {
+  const DemoLabelEnvironmentSettings({
+    super.key,
+    required this.renderer,
+    required this.language,
+    required this.textScale,
+    required this.onLanguageChanged,
+    required this.onTextScaleChanged,
+  });
+
+  final DemoRenderer renderer;
+  final DemoActionLanguage language;
+  final double textScale;
+  final ValueChanged<DemoActionLanguage?> onLanguageChanged;
+  final ValueChanged<double> onTextScaleChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final controls = <Widget>[
+      switch (renderer) {
+        DemoRenderer.material => DropdownButton<DemoActionLanguage>(
+          key: actionLanguageSelectorKey,
+          value: language,
+          isExpanded: true,
+          items: [
+            for (final value in DemoActionLanguage.values)
+              DropdownMenuItem(value: value, child: Text(value.label)),
+          ],
+          onChanged: onLanguageChanged,
+        ),
+        DemoRenderer.apple => _CupertinoSelectionField<DemoActionLanguage>(
+          key: actionLanguageSelectorKey,
+          title: 'Action language',
+          value: language,
+          options: DemoActionLanguage.values,
+          labelOf: (value) => value.label,
+          onChanged: onLanguageChanged,
+        ),
+      },
+      Text('Text and icon scale: ${textScale.toStringAsFixed(1)}x'),
+      switch (renderer) {
+        DemoRenderer.material => Slider(
+          key: textScaleSliderKey,
+          min: 1,
+          max: 2,
+          divisions: 4,
+          value: textScale,
+          onChanged: onTextScaleChanged,
+        ),
+        DemoRenderer.apple => cupertino.CupertinoSlider(
+          key: textScaleSliderKey,
+          min: 1,
+          max: 2,
+          divisions: 4,
+          value: textScale,
+          onChanged: onTextScaleChanged,
+        ),
+      },
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: controls,
+    );
+  }
+}
+
 final class DemoAnimationSettings extends StatelessWidget {
   const DemoAnimationSettings({
     super.key,

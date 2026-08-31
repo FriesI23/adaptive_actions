@@ -2,6 +2,25 @@ import 'package:flutter/widgets.dart';
 
 import '../../core.dart';
 
+/// Constrains one primary action label without changing its placement policy.
+final class ActionLabelLayout {
+  /// Creates a single-line label layout.
+  const ActionLabelLayout({
+    this.maxWidth,
+    this.overflow = TextOverflow.ellipsis,
+  }) : assert(
+         maxWidth == null || (maxWidth >= 0 && maxWidth < double.infinity),
+       );
+
+  /// The optional finite maximum label width, or `null` for no limit.
+  final double? maxWidth;
+
+  /// How text exceeding [maxWidth] is painted.
+  ///
+  /// This value has no effect while [maxWidth] is `null`.
+  final TextOverflow overflow;
+}
+
 /// The built-in horizontal distribution used by one action region.
 enum ActionRegionMainAxisDistribution {
   /// Keeps every slot at its minimum extent and shrink-wraps the region.
