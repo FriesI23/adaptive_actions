@@ -137,7 +137,7 @@ void main() {
     ),
   );
 
-  testWidgets('scales primary text and icons before resolving layout', (
+  testWidgets('scales primary text but keeps icon geometry fixed', (
     tester,
   ) async {
     final save = action('save', label: 'Save', iconKey: 'save');
@@ -164,10 +164,10 @@ void main() {
 
     expect(find.text('Save'), findsNothing);
     final iconContext = tester.element(find.byIcon(CupertinoIcons.floppy_disk));
-    expect(IconTheme.of(iconContext).size, 40);
+    expect(IconTheme.of(iconContext).size, 20);
     expect(
       tester.getSize(find.byType(CupertinoAdaptiveActions<String>)).width,
-      60,
+      44,
     );
   });
 

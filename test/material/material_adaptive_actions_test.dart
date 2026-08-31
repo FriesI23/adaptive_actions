@@ -125,7 +125,7 @@ void main() {
         _ => null,
       };
 
-  testWidgets('scales primary text and icons before resolving layout', (
+  testWidgets('scales primary text but keeps icon geometry fixed', (
     tester,
   ) async {
     final save = action('save', label: 'Save', iconKey: 'save');
@@ -152,10 +152,10 @@ void main() {
 
     expect(find.text('Save'), findsNothing);
     final iconContext = tester.element(find.byIcon(Icons.save));
-    expect(IconTheme.of(iconContext).size, 36);
+    expect(IconTheme.of(iconContext).size, 18);
     expect(
       tester.getSize(find.byType(MaterialAdaptiveActions<String>)).width,
-      60,
+      48,
     );
   });
 

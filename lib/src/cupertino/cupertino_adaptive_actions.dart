@@ -643,7 +643,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
         icon: iconBuilder?.call(context, action),
         labelLayout: labelLayout,
         labelWidth: _labelWidth(context, action.metadata.label, labelLayout),
-        iconSize: MediaQuery.textScalerOf(context).scale(style.iconSize),
+        iconSize: style.iconSize,
         presentationOverride:
             presentationForAction?.call(context, action) ??
             presentationOverride,
