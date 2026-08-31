@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Added independent single-line label width and overflow policies for each
+  Material and Cupertino root action.
+- Updated action measurement to honor the ambient locale and text scaler, and
+  scale primary icons before placement resolution.
+- Expanded the example with English and Chinese label comparisons for
+  ellipsis, fade, and unconstrained label widths.
+
 ## 0.3.0
 
 > **Breaking change:** Action-region composition now uses package-owned slot
