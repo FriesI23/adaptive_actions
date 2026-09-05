@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Added renderer-specific action menu builders for complete stateful Material
+  and Cupertino menu content, including persistent multi-select menus.
+- Added explicit `AdaptiveAction.hasMenu` structure so menu and composite
+  actions can use renderer-provided content without placeholder children.
+- Preserved recursive declared children as the default compatible menu path.
+
 ## 0.4.1
 
 - Kept Material and Cupertino action icon geometry independent from text
