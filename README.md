@@ -106,7 +106,7 @@ MaterialAdaptiveActions<DocumentCommand>.moreAction(
     'delete' => const Icon(Icons.delete),
     _ => null,
   },
-)
+);
 ```
 
 `primaryCapacity` is the width left for actions after the title, padding, and
@@ -191,12 +191,49 @@ Retention does not override placement rules or display order.
 | Constructor                | Direct invocation | Children |
 | -------------------------- | ----------------- | -------- |
 | `AdaptiveAction.action`    | Required          | None     |
-| `AdaptiveAction.menu`      | None              | Required |
-| `AdaptiveAction.composite` | Required          | Required |
+| `AdaptiveAction.menu`      | None              | Children or renderer builder |
+| `AdaptiveAction.composite` | Required          | Children or renderer builder |
 
 The layout places root actions. When a menu or composite action moves into
 overflow, all of its children move with it and keep their declared order. A
 disabled branch cannot be invoked or opened.
+
+When an action owns stateful or platform-specific menu content, omit its
+children and provide `menuBuilderForAction`. Returning a non-null list replaces
+that action's complete menu subtree; returning `null` keeps the recursive
+children behavior. Material multi-select menus can use
+`CheckboxMenuButton(closeOnActivate: false)`:
+
+```dart
+final filters = AdaptiveAction<DocumentCommand>.menu(
+  id: ActionId('filters'),
+  metadata: const ActionMetadata(label: 'Filters'),
+);
+
+MaterialAdaptiveActions<DocumentCommand>.moreAction(
+  actions: ActionCollection(roots: [filters]),
+  primaryCapacity: 160,
+  onInvoke: handleDocumentCommand,
+  menuBuilderForAction: (context, action) => action.id != filters.id
+      ? null
+      : [
+          CheckboxMenuButton(
+            value: vegan,
+            closeOnActivate: false,
+            onChanged: updateVegan,
+            child: const Text('Vegan'),
+          ),
+        ],
+);
+```
+
+Use `CupertinoActionMenuBuilder` on Apple platforms and represent selected
+items with a leading checkmark. Set
+`CupertinoMenuItem.requestCloseOnActivate` to `false` for persistent
+multi-select. The caller owns custom menu state, callbacks, nested content, and
+close behavior. The package still owns the action trigger and the first-level
+overflow menu; if the action moves into overflow, its custom content becomes
+that action's submenu.
 
 Use `AdaptiveMenuDivider` between child actions to separate menu groups. It is
 rendered as `PopupMenuDivider` on Material and `CupertinoMenuDivider` on

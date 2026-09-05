@@ -124,7 +124,7 @@ final class _InteractionProbe<T extends Object> {
       return const [];
     }
     if (action.payload != null) {
-      if (action.children.isEmpty) {
+      if (!action.hasMenu) {
         return ['invoke:${action.id}'];
       }
       if (capabilities.supportsCompositeActions) {

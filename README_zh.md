@@ -100,7 +100,7 @@ MaterialAdaptiveActions<DocumentCommand>.moreAction(
     'delete' => const Icon(Icons.delete),
     _ => null,
   },
-)
+);
 ```
 
 `primaryCapacity` 是标题、padding 和其他控件占位后，留给操作的宽度。
@@ -183,11 +183,44 @@ fvm flutter run
 | 构造器                     | 可直接调用 | 子操作 |
 | -------------------------- | ---------- | ------ |
 | `AdaptiveAction.action`    | 必需       | 无     |
-| `AdaptiveAction.menu`      | 无         | 必需   |
-| `AdaptiveAction.composite` | 必需       | 必需   |
+| `AdaptiveAction.menu`      | 无         | children 或 renderer builder |
+| `AdaptiveAction.composite` | 必需       | children 或 renderer builder |
 
 布局以顶层操作为单位。菜单或复合操作进入更多菜单时，它的子操作会一起移动，并
 保留声明顺序。禁用的分支不能调用，也不能打开。
+
+如果一个 action 拥有带状态或平台专属的菜单内容，可以省略 children，并提供
+`menuBuilderForAction`。返回非空列表会完整替换该 action 的菜单子树；返回 `null`
+则继续使用原有递归 children。Material 多选菜单可以使用
+`CheckboxMenuButton(closeOnActivate: false)`：
+
+```dart
+final filters = AdaptiveAction<DocumentCommand>.menu(
+  id: ActionId('filters'),
+  metadata: const ActionMetadata(label: '筛选'),
+);
+
+MaterialAdaptiveActions<DocumentCommand>.moreAction(
+  actions: ActionCollection(roots: [filters]),
+  primaryCapacity: 160,
+  onInvoke: handleDocumentCommand,
+  menuBuilderForAction: (context, action) => action.id != filters.id
+      ? null
+      : [
+          CheckboxMenuButton(
+            value: vegan,
+            closeOnActivate: false,
+            onChanged: updateVegan,
+            child: const Text('纯素'),
+          ),
+        ],
+);
+```
+
+Apple 平台使用 `CupertinoActionMenuBuilder`，并用 leading checkmark 表示选中状态；
+持续多选项设置 `CupertinoMenuItem.requestCloseOnActivate: false`。自定义菜单的状态、
+callback、内部层级与关闭方式由调用方负责。package 仍拥有 action trigger 与 overflow
+第一层；action 移入 overflow 后，自定义内容会成为该 action 的 submenu。
 
 在子操作之间加入 `AdaptiveMenuDivider` 可以划分菜单分组。Material 会将其渲染为
 `PopupMenuDivider`，Cupertino 会将其渲染为 `CupertinoMenuDivider`。默认会在两个

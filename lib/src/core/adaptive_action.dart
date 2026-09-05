@@ -66,16 +66,17 @@ final class AdaptiveMenuDivider<T extends Object> extends AdaptiveMenuEntry<T> {
 
 /// An immutable, platform-neutral action node.
 ///
-/// A node can carry an invocation [payload], [children], or both. Renderers
-/// decide how to present the node in its resolved region; moving a node never
-/// changes or flattens its children. Core never invokes [payload]. A renderer
-/// hands an enabled node's payload back to a caller-owned handler and preserves
-/// child navigation as a separate interaction.
+/// A node can carry an invocation [payload], menu structure, or both. Menu
+/// structure is explicit through [hasMenu], while its content can come from
+/// declared [children] or a platform renderer's action-menu builder. Moving a
+/// node never changes or flattens its declared children. Core never invokes
+/// [payload]. A renderer hands an enabled node's payload back to a caller-owned
+/// handler and preserves menu navigation as a separate interaction.
 ///
 /// ```text
 /// action       payload
-/// menu                  -> child -> child
-/// composite    payload  -> child -> child
+/// menu                  -> declared or renderer-provided content
+/// composite    payload  -> declared or renderer-provided content
 /// ```
 final class AdaptiveAction<T extends Object> extends AdaptiveMenuEntry<T> {
   AdaptiveAction._({
@@ -84,6 +85,7 @@ final class AdaptiveAction<T extends Object> extends AdaptiveMenuEntry<T> {
     required this.isEnabled,
     required this.placementPolicy,
     required this.payload,
+    required this.hasMenu,
     required this.children,
   });
 
@@ -100,50 +102,61 @@ final class AdaptiveAction<T extends Object> extends AdaptiveMenuEntry<T> {
     isEnabled: isEnabled,
     placementPolicy: placementPolicy ?? ActionPlacementPolicy(),
     payload: payload,
+    hasMenu: false,
     children: const [],
   );
 
   /// Creates a branch that opens [children] without invoking a payload.
   ///
-  /// Throws an [ArgumentError] when [children] is empty.
+  /// [children] may be empty when a platform renderer supplies this action's
+  /// complete menu through its action-menu builder.
+  ///
+  /// Throws an [ArgumentError] when a non-empty [children] list contains only
+  /// dividers.
   factory AdaptiveAction.menu({
     required ActionId id,
     required ActionMetadata metadata,
-    required Iterable<AdaptiveMenuEntry<T>> children,
+    Iterable<AdaptiveMenuEntry<T>> children = const [],
     bool isEnabled = true,
     ActionPlacementPolicy? placementPolicy,
   }) {
     final immutableChildren = List<AdaptiveMenuEntry<T>>.unmodifiable(children);
-    _requireChildren(immutableChildren);
+    _requireValidChildren(immutableChildren);
     return AdaptiveAction._(
       id: id,
       metadata: metadata,
       isEnabled: isEnabled,
       placementPolicy: placementPolicy ?? ActionPlacementPolicy(),
       payload: null,
+      hasMenu: true,
       children: immutableChildren,
     );
   }
 
   /// Creates a branch that can both invoke [payload] and open [children].
   ///
-  /// Throws an [ArgumentError] when [children] is empty.
+  /// [children] may be empty when a platform renderer supplies this action's
+  /// complete menu through its action-menu builder.
+  ///
+  /// Throws an [ArgumentError] when a non-empty [children] list contains only
+  /// dividers.
   factory AdaptiveAction.composite({
     required ActionId id,
     required ActionMetadata metadata,
     required T payload,
-    required Iterable<AdaptiveMenuEntry<T>> children,
+    Iterable<AdaptiveMenuEntry<T>> children = const [],
     bool isEnabled = true,
     ActionPlacementPolicy? placementPolicy,
   }) {
     final immutableChildren = List<AdaptiveMenuEntry<T>>.unmodifiable(children);
-    _requireChildren(immutableChildren);
+    _requireValidChildren(immutableChildren);
     return AdaptiveAction._(
       id: id,
       metadata: metadata,
       isEnabled: isEnabled,
       placementPolicy: placementPolicy ?? ActionPlacementPolicy(),
       payload: payload,
+      hasMenu: true,
       children: immutableChildren,
     );
   }
@@ -173,11 +186,19 @@ final class AdaptiveAction<T extends Object> extends AdaptiveMenuEntry<T> {
   /// type.
   final T? payload;
 
+  /// Whether this node opens a menu independently of its invocation payload.
+  ///
+  /// This is `true` for nodes created with [AdaptiveAction.menu] and
+  /// [AdaptiveAction.composite], including when [children] is empty because a
+  /// platform renderer supplies the complete menu content.
+  final bool hasMenu;
+
   /// The node's menu entries in declaration order.
   ///
   /// Entries may be nested [AdaptiveAction]s or visual
   /// [AdaptiveMenuDivider]s. Dividers are rendered only inside this node's
-  /// menu and never participate in root placement.
+  /// menu and never participate in root placement. This list may be empty when
+  /// [hasMenu] is true and a platform renderer supplies the complete content.
   final List<AdaptiveMenuEntry<T>> children;
 
   /// Whether this node carries an invocation payload.
@@ -192,6 +213,7 @@ final class AdaptiveAction<T extends Object> extends AdaptiveMenuEntry<T> {
           isEnabled == other.isEnabled &&
           placementPolicy == other.placementPolicy &&
           payload == other.payload &&
+          hasMenu == other.hasMenu &&
           const ListEquality<Object?>().equals(children, other.children);
 
   @override
@@ -201,6 +223,7 @@ final class AdaptiveAction<T extends Object> extends AdaptiveMenuEntry<T> {
     isEnabled,
     placementPolicy,
     payload,
+    hasMenu,
     const ListEquality<Object?>().hash(children),
   );
 
@@ -208,15 +231,14 @@ final class AdaptiveAction<T extends Object> extends AdaptiveMenuEntry<T> {
   String toString() =>
       'AdaptiveAction(id: $id, isEnabled: $isEnabled, '
       'placementPolicy: $placementPolicy, '
-      'isInvokable: $isInvokable, children: ${children.length})';
+      'isInvokable: $isInvokable, hasMenu: $hasMenu, '
+      'children: ${children.length})';
 
-  static void _requireChildren<T extends Object>(
+  static void _requireValidChildren<T extends Object>(
     List<AdaptiveMenuEntry<T>> children,
   ) {
-    if (children.isEmpty) {
-      throw ArgumentError.value(children, 'children', 'must not be empty');
-    }
-    if (!children.any((entry) => entry is AdaptiveAction<T>)) {
+    if (children.isNotEmpty &&
+        !children.any((entry) => entry is AdaptiveAction<T>)) {
       throw ArgumentError.value(children, 'children', 'must contain an action');
     }
   }

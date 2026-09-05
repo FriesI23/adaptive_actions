@@ -60,6 +60,14 @@ typedef CupertinoActionButtonBuilder<T extends Object> =
       CupertinoActionButtonDefaultBuilder<T> defaultBuilder,
     );
 
+/// Builds the complete Cupertino menu content for one adaptive [action].
+///
+/// Return `null` to use the renderer's default recursive rendering of
+/// [AdaptiveAction.children]. A non-null result replaces that complete menu
+/// subtree and must not be empty.
+typedef CupertinoActionMenuBuilder<T extends Object> =
+    List<Widget>? Function(BuildContext context, AdaptiveAction<T> action);
+
 /// Builds the default Cupertino overflow-menu trigger.
 ///
 /// Pass [icon] to override only the trigger icon while retaining the default
@@ -266,8 +274,9 @@ final class CupertinoAdaptiveActionsStyle {
 /// navigation bar reserves for its leading widget and title. On every build
 /// this widget creates Cupertino-owned layout options, resolves the supplied
 /// [actions], and draws the ordered primary and overflow result without
-/// changing the action collection. Primary menu, composite submenu, and
-/// overflow nodes share one recursive Cupertino anchored-menu renderer.
+/// changing the action collection. Declared children use one recursive
+/// Cupertino anchored-menu renderer, while [menuBuilderForAction] can replace
+/// one action's complete menu subtree with caller-owned content.
 ///
 /// Layout changes animate one boundary action instead of replacing the whole
 /// row. Stable actions remain visible while the changing slot fades and
@@ -323,6 +332,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.menuBuilderForAction,
     this.overflowButtonBuilder,
     this.onOverflowMenuOpened,
     this.onOverflowMenuClosed,
@@ -360,6 +370,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.menuBuilderForAction,
     this.overflowButtonBuilder,
     this.onOverflowMenuOpened,
     this.onOverflowMenuClosed,
@@ -454,6 +465,13 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
   /// Overrides leaf actions, primary menu triggers, and composite invoke
   /// buttons while preserving the renderer-owned slot constraints.
   final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
+
+  /// Optionally replaces the complete menu content of each menu action.
+  ///
+  /// Returning `null` retains the default recursive rendering of the action's
+  /// [AdaptiveAction.children]. The builder owns state, callbacks, nested
+  /// content, and item close behavior for every non-null result.
+  final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
 
   /// Overrides the overflow trigger without replacing its anchored menu.
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
@@ -597,6 +615,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
           onInvoke: onInvoke,
           iconBuilder: iconBuilder,
           actionButtonBuilder: actionButtonBuilder,
+          menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
           onOverflowMenuOpened: onOverflowMenuOpened,
           onOverflowMenuClosed: onOverflowMenuClosed,
@@ -683,6 +702,7 @@ final class _CupertinoRegionData<T extends Object> {
     required this.onInvoke,
     required this.iconBuilder,
     required this.actionButtonBuilder,
+    required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
     required this.onOverflowMenuOpened,
     required this.onOverflowMenuClosed,
@@ -700,6 +720,7 @@ final class _CupertinoRegionData<T extends Object> {
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
+  final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
   final VoidCallback? onOverflowMenuOpened;
   final VoidCallback? onOverflowMenuClosed;
@@ -806,6 +827,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
         dividerBeforeActionIds: data.overflowDividerBeforeActionIds,
         onInvoke: data.onInvoke,
         iconBuilder: data.iconBuilder,
+        menuBuilderForAction: data.menuBuilderForAction,
         overflowButtonBuilder: data.overflowButtonBuilder,
         onMenuOpened: data.onOverflowMenuOpened,
         onMenuClosed: data.onOverflowMenuClosed,
@@ -826,7 +848,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
       button: true,
       enabled: action.isEnabled,
       child: switch (action) {
-        _ when action.children.isEmpty => _CustomizableCupertinoActionButton<T>(
+        _ when !action.hasMenu => _CustomizableCupertinoActionButton<T>(
           action: action,
           visual: visual,
           optionId: entry.optionId,
@@ -840,8 +862,10 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
         ),
         _ when action.payload == null => _CupertinoActionMenuAnchor<T>(
           entries: action.children,
+          menuAction: action,
           onInvoke: data.onInvoke,
           iconBuilder: data.iconBuilder,
+          menuBuilderForAction: data.menuBuilderForAction,
           invokeAfterMenuClosed: data.invokeAfterMenuClosed,
           triggerBuilder: (context, toggle, focusNode) =>
               _CupertinoMenuTriggerFocusHalo(
@@ -876,8 +900,11 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
             ),
             _CupertinoActionMenuAnchor<T>(
               entries: action.children,
+              menuAction: action,
+              includeActionInvocation: true,
               onInvoke: data.onInvoke,
               iconBuilder: data.iconBuilder,
+              menuBuilderForAction: data.menuBuilderForAction,
               invokeAfterMenuClosed: data.invokeAfterMenuClosed,
               triggerBuilder: (context, toggle, focusNode) => Semantics(
                 label:
@@ -1145,7 +1172,7 @@ final class _AnimatedCupertinoActionButton<T extends Object>
 
   double _invokeWidth(ActionLayoutOptionId optionId) {
     final total = visual.costFor(optionId);
-    final isComposite = action.payload != null && action.children.isNotEmpty;
+    final isComposite = action.payload != null && action.hasMenu;
     return isComposite ? total - style.submenuButtonWidth : total;
   }
 }
@@ -1243,8 +1270,11 @@ final class _CupertinoActionMenuAnchor<T extends Object>
     required this.entries,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
     required this.invokeAfterMenuClosed,
     required this.triggerBuilder,
+    this.menuAction,
+    this.includeActionInvocation = false,
     this.onMenuOpened,
     this.onMenuClosed,
   });
@@ -1252,8 +1282,11 @@ final class _CupertinoActionMenuAnchor<T extends Object>
   final List<AdaptiveMenuEntry<T>> entries;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
+  final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final bool invokeAfterMenuClosed;
   final _CupertinoMenuTriggerBuilder triggerBuilder;
+  final AdaptiveAction<T>? menuAction;
+  final bool includeActionInvocation;
   final VoidCallback? onMenuOpened;
   final VoidCallback? onMenuClosed;
 
@@ -1377,16 +1410,27 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
       childFocusNode: _focusNode,
       onOpen: _handleMenuOpened,
       onClose: _handleMenuClosed,
-      menuChildren: [
-        for (final entry in widget.entries)
-          if (_cupertinoMenuEntryIsVisible(entry))
-            _CupertinoMenuEntry<T>(
-              entry: entry,
+      menuChildren: widget.menuAction == null
+          ? [
+              for (final entry in widget.entries)
+                if (_cupertinoMenuEntryIsVisible(entry))
+                  _CupertinoMenuEntry<T>(
+                    entry: entry,
+                    onRequestInvoke: _requestMenuInvocation,
+                    iconBuilder: widget.iconBuilder,
+                    menuBuilderForAction: widget.menuBuilderForAction,
+                    textDirection: textDirection,
+                  ),
+            ]
+          : _cupertinoMenuChildren<T>(
+              context: context,
+              action: widget.menuAction!,
               onRequestInvoke: _requestMenuInvocation,
               iconBuilder: widget.iconBuilder,
+              menuBuilderForAction: widget.menuBuilderForAction,
               textDirection: textDirection,
+              includeActionInvocation: widget.includeActionInvocation,
             ),
-      ],
       builder: (context, controller, child) => Listener(
         onPointerDown: _handlePointerDown,
         onPointerUp: _handlePointerUp,
@@ -1403,6 +1447,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     required this.dividerBeforeActionIds,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
     required this.onMenuOpened,
     required this.onMenuClosed,
@@ -1416,6 +1461,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
   final List<ActionId> dividerBeforeActionIds;
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
+  final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
   final VoidCallback? onMenuOpened;
   final VoidCallback? onMenuClosed;
@@ -1435,6 +1481,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     ],
     onInvoke: onInvoke,
     iconBuilder: iconBuilder,
+    menuBuilderForAction: menuBuilderForAction,
     onMenuOpened: onMenuOpened,
     onMenuClosed: onMenuClosed,
     invokeAfterMenuClosed: invokeAfterMenuClosed,
@@ -1472,12 +1519,14 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
     required this.entry,
     required this.onRequestInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
     required this.textDirection,
   });
 
   final AdaptiveMenuEntry<T> entry;
   final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
+  final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final TextDirection textDirection;
 
   @override
@@ -1489,13 +1538,13 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
           : const SizedBox.shrink();
     }
     final action = entry as AdaptiveAction<T>;
-    if (action.children.isEmpty || !action.isEnabled) {
+    if (!action.hasMenu || !action.isEnabled) {
       return _CupertinoMenuInvokeItem<T>(
         action: action,
         onRequestInvoke: onRequestInvoke,
         iconBuilder: iconBuilder,
         textDirection: textDirection,
-        showsSubmenuAffordance: action.children.isNotEmpty,
+        showsSubmenuAffordance: action.hasMenu,
       );
     }
 
@@ -1503,9 +1552,68 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
       action: action,
       onRequestInvoke: onRequestInvoke,
       iconBuilder: iconBuilder,
+      menuBuilderForAction: menuBuilderForAction,
       textDirection: textDirection,
     );
   }
+}
+
+List<Widget> _cupertinoMenuChildren<T extends Object>({
+  required BuildContext context,
+  required AdaptiveAction<T> action,
+  required ValueChanged<T> onRequestInvoke,
+  required CupertinoActionIconBuilder<T>? iconBuilder,
+  required CupertinoActionMenuBuilder<T>? menuBuilderForAction,
+  required TextDirection textDirection,
+  bool includeActionInvocation = false,
+}) {
+  final customChildren = menuBuilderForAction?.call(context, action);
+  if (customChildren != null) {
+    if (customChildren.isEmpty) {
+      throw FlutterError.fromParts([
+        ErrorSummary('A custom Cupertino action menu cannot be empty.'),
+        ErrorDescription(
+          'The menu builder returned no widgets for action ${action.id}.',
+        ),
+        ErrorHint(
+          'Return at least one menu widget, or return null to render the '
+          "action's declared children.",
+        ),
+      ]);
+    }
+    return customChildren;
+  }
+  if (action.children.isEmpty) {
+    throw FlutterError.fromParts([
+      ErrorSummary('A Cupertino menu action has no menu content.'),
+      ErrorDescription(
+        'Action ${action.id} declares hasMenu == true but has no children '
+        'and its menu builder returned null.',
+      ),
+      ErrorHint(
+        'Provide menuBuilderForAction content for this action or declare at '
+        'least one child action.',
+      ),
+    ]);
+  }
+  return [
+    if (includeActionInvocation && action.payload != null)
+      _CupertinoMenuInvokeItem<T>(
+        action: action,
+        onRequestInvoke: onRequestInvoke,
+        iconBuilder: iconBuilder,
+        textDirection: textDirection,
+      ),
+    for (final child in action.children)
+      if (_cupertinoMenuEntryIsVisible(child))
+        _CupertinoMenuEntry<T>(
+          entry: child,
+          onRequestInvoke: onRequestInvoke,
+          iconBuilder: iconBuilder,
+          menuBuilderForAction: menuBuilderForAction,
+          textDirection: textDirection,
+        ),
+  ];
 }
 
 bool _cupertinoMenuEntryIsVisible<T extends Object>(
@@ -1561,12 +1669,14 @@ final class _CupertinoSubmenuItem<T extends Object> extends StatefulWidget {
     required this.action,
     required this.onRequestInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
     required this.textDirection,
   });
 
   final AdaptiveAction<T> action;
   final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
+  final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final TextDirection textDirection;
 
   @override
@@ -1591,23 +1701,15 @@ final class _CupertinoSubmenuItemState<T extends Object>
     return CupertinoMenuAnchor(
       controller: _controller,
       childFocusNode: _focusNode,
-      menuChildren: [
-        if (action.payload != null)
-          _CupertinoMenuInvokeItem<T>(
-            action: action,
-            onRequestInvoke: widget.onRequestInvoke,
-            iconBuilder: widget.iconBuilder,
-            textDirection: widget.textDirection,
-          ),
-        for (final child in action.children)
-          if (_cupertinoMenuEntryIsVisible(child))
-            _CupertinoMenuEntry<T>(
-              entry: child,
-              onRequestInvoke: widget.onRequestInvoke,
-              iconBuilder: widget.iconBuilder,
-              textDirection: widget.textDirection,
-            ),
-      ],
+      menuChildren: _cupertinoMenuChildren<T>(
+        context: context,
+        action: action,
+        onRequestInvoke: widget.onRequestInvoke,
+        iconBuilder: widget.iconBuilder,
+        menuBuilderForAction: widget.menuBuilderForAction,
+        textDirection: widget.textDirection,
+        includeActionInvocation: true,
+      ),
       builder: (context, controller, child) => Semantics(
         label: _cupertinoMenuSemanticsLabel(action.metadata),
         excludeSemantics: action.metadata.semanticLabel != null,
@@ -1692,7 +1794,7 @@ final class _CupertinoActionVisual<T extends Object> {
         labelWidth,
         hasIcon: icon != null,
         iconSize: iconSize,
-        isComposite: action.payload != null && action.children.isNotEmpty,
+        isComposite: action.payload != null && action.hasMenu,
         style: style,
       ),
     ),
@@ -1701,7 +1803,7 @@ final class _CupertinoActionVisual<T extends Object> {
         : ActionLayoutOption(
             id: _cupertinoIconOptionId,
             cost: _iconCost(
-              isComposite: action.payload != null && action.children.isNotEmpty,
+              isComposite: action.payload != null && action.hasMenu,
               iconSize: iconSize,
               style: style,
             ),

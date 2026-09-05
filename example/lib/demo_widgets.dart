@@ -205,11 +205,13 @@ final class DesktopActionMenu<T extends Object> extends StatelessWidget {
     required this.actions,
     required this.onInvoke,
     required this.iconBuilder,
+    this.menuBuilderForAction,
   });
 
   final ActionCollection<T> actions;
   final ValueChanged<T> onInvoke;
   final DemoActionIconBuilder<T> iconBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
 
   @override
   Widget build(BuildContext context) {
@@ -232,6 +234,7 @@ final class DesktopActionMenu<T extends Object> extends StatelessWidget {
             entry: action,
             onInvoke: onInvoke,
             iconBuilder: iconBuilder,
+            menuBuilderForAction: menuBuilderForAction,
           ),
       ],
       builder: (context, controller, child) => OutlinedButton.icon(
@@ -248,11 +251,13 @@ final class _DesktopMenuEntry<T extends Object> extends StatelessWidget {
     required this.entry,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
   });
 
   final AdaptiveMenuEntry<T> entry;
   final ValueChanged<T> onInvoke;
   final DemoActionIconBuilder<T> iconBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
 
   @override
   Widget build(BuildContext context) {
@@ -261,29 +266,33 @@ final class _DesktopMenuEntry<T extends Object> extends StatelessWidget {
       return const PopupMenuDivider();
     }
     final action = entry as AdaptiveAction<T>;
-    if (action.children.isEmpty || !action.isEnabled) {
+    if (!action.hasMenu || !action.isEnabled) {
       return _DesktopInvokeItem<T>(
         action: action,
         onInvoke: onInvoke,
         iconBuilder: iconBuilder,
       );
     }
+    final customChildren = menuBuilderForAction?.call(context, action);
     return SubmenuButton(
       leadingIcon: iconBuilder(context, action),
-      menuChildren: [
-        if (action.payload != null)
-          _DesktopInvokeItem<T>(
-            action: action,
-            onInvoke: onInvoke,
-            iconBuilder: iconBuilder,
-          ),
-        for (final child in action.children)
-          _DesktopMenuEntry<T>(
-            entry: child,
-            onInvoke: onInvoke,
-            iconBuilder: iconBuilder,
-          ),
-      ],
+      menuChildren:
+          customChildren ??
+          [
+            if (action.payload != null)
+              _DesktopInvokeItem<T>(
+                action: action,
+                onInvoke: onInvoke,
+                iconBuilder: iconBuilder,
+              ),
+            for (final child in action.children)
+              _DesktopMenuEntry<T>(
+                entry: child,
+                onInvoke: onInvoke,
+                iconBuilder: iconBuilder,
+                menuBuilderForAction: menuBuilderForAction,
+              ),
+          ],
       child: Text(action.metadata.label),
     );
   }

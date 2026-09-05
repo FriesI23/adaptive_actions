@@ -274,7 +274,7 @@ final class _TextRenderer<T extends Object> {
     if (action.payload == null) {
       return 'menu';
     }
-    if (action.children.isEmpty) {
+    if (!action.hasMenu) {
       return 'invoke';
     }
     return capabilities.supportsCompositeActions

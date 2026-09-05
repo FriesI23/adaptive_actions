@@ -86,6 +86,51 @@ void main() {
     );
   }
 
+  for (final renderer in [DemoRenderer.material, DemoRenderer.apple]) {
+    testWidgets(
+      '${renderer.label} custom filter menu keeps multiple selections open',
+      (tester) async {
+        try {
+          debugDefaultTargetPlatformOverride = switch (renderer) {
+            DemoRenderer.material => TargetPlatform.android,
+            DemoRenderer.apple => TargetPlatform.iOS,
+          };
+
+          await tester.pumpWidget(const AdaptiveActionsExampleApp());
+          await tester.pumpAndSettle();
+          final filters = find.descendant(
+            of: find.byKey(appBarActionsKey),
+            matching: find.byIcon(
+              renderer == DemoRenderer.apple
+                  ? CupertinoIcons.slider_horizontal_3
+                  : Icons.filter_list,
+            ),
+          );
+          expect(filters, findsOneWidget);
+          await tester.tap(filters);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Vegan').last);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Nut-free').last);
+          await tester.pumpAndSettle();
+
+          expect(find.text('Vegan'), findsWidgets);
+          expect(find.text('Nut-free'), findsWidgets);
+          if (renderer == DemoRenderer.material) {
+            final values = tester
+                .widgetList<CheckboxMenuButton>(find.byType(CheckboxMenuButton))
+                .map((item) => item.value);
+            expect(values, containsAll([true, true]));
+          } else {
+            expect(find.byIcon(CupertinoIcons.check_mark), findsNWidgets(2));
+          }
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+  }
+
   for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
     testWidgets('defaults to the Apple renderer on ${platform.name}', (
       tester,
@@ -193,7 +238,7 @@ void main() {
       tester
           .widget<DropdownButton<int>>(find.byKey(maxPrimaryActionsKey))
           .items,
-      hasLength(10),
+      hasLength(11),
     );
     var actionWidthSlider = tester.widget<Slider>(
       find.byKey(actionWidthSliderKey),
@@ -404,7 +449,7 @@ void main() {
         of: find.byKey(appBarActionsKey),
         matching: find.byType(VerticalDivider),
       ),
-      findsNWidgets(3),
+      findsNWidgets(4),
     );
     final deleteIcon = find.descendant(
       of: find.descendant(

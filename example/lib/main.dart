@@ -141,6 +141,7 @@ final class _AdaptiveActionsDemoPageState
   bool _enabled = true;
   bool _showAppBarActionFrame = true;
   bool _customOverflowButton = false;
+  final Set<String> _selectedFilters = {};
   Duration _fadeDuration = _kActionsAnimationDuration;
   Duration _resizeDuration = _kActionsAnimationDuration;
   bool _centerTitle = false;
@@ -213,6 +214,8 @@ final class _AdaptiveActionsDemoPageState
         brightness: widget.brightness,
         onInvoke: _onInvoke,
         customOverflowButton: _customOverflowButton,
+        selectedFilterIds: _selectedFilters,
+        onFilterToggle: _toggleFilter,
       ),
     };
     return Localizations.override(
@@ -424,6 +427,7 @@ final class _AdaptiveActionsDemoPageState
               actions: actions,
               onInvoke: _onInvoke,
               iconBuilder: _materialIconBuilder,
+              menuBuilderForAction: _materialMenuBuilder,
             ),
           ),
         const SizedBox(height: 32),
@@ -493,6 +497,7 @@ final class _AdaptiveActionsDemoPageState
         onInvoke: _onInvoke,
         iconBuilder: _materialIconBuilder,
         actionButtonBuilder: _materialActionButtonBuilder,
+        menuBuilderForAction: _materialMenuBuilder,
         overflowButtonBuilder: _customOverflowButton
             ? _materialOverflowButtonBuilder
             : null,
@@ -518,6 +523,8 @@ final class _AdaptiveActionsDemoPageState
       resizeDuration: _resizeDuration,
       onInvoke: _onInvoke,
       customOverflowButton: _customOverflowButton,
+      selectedFilterIds: _selectedFilters,
+      onFilterToggle: _toggleFilter,
     ),
   };
 
@@ -632,6 +639,20 @@ final class _AdaptiveActionsDemoPageState
           ),
         ],
       ),
+      AdaptiveAction.menu(
+        id: ActionId('filters'),
+        metadata: const ActionMetadata(
+          label: 'Filters',
+          tooltip: 'Choose dietary filters',
+          iconKey: 'filters',
+        ),
+        isEnabled: _enabled,
+        placementPolicy: ActionPlacementPolicy(
+          automaticPreference: AutomaticPlacementPreference(
+            retentionPriority: PrimaryRetentionPriority.low,
+          ),
+        ),
+      ),
       divider,
       AdaptiveAction.action(
         id: ActionId('delete'),
@@ -739,6 +760,30 @@ final class _AdaptiveActionsDemoPageState
     ],
     placementConstraints: sharedActions.placementConstraints,
   );
+
+  List<Widget>? _materialMenuBuilder(
+    BuildContext context,
+    AdaptiveAction<DemoCommand> action,
+  ) => action.id.value != 'filters'
+      ? null
+      : [
+          CheckboxMenuButton(
+            value: _selectedFilters.contains('vegan'),
+            closeOnActivate: false,
+            onChanged: (_) => _toggleFilter('vegan'),
+            child: const Text('Vegan'),
+          ),
+          CheckboxMenuButton(
+            value: _selectedFilters.contains('nut-free'),
+            closeOnActivate: false,
+            onChanged: (_) => _toggleFilter('nut-free'),
+            child: const Text('Nut-free'),
+          ),
+        ];
+
+  void _toggleFilter(String id) => setState(() {
+    if (!_selectedFilters.remove(id)) _selectedFilters.add(id);
+  });
 
   Widget _localizedComparisonRegion({
     required ActionCollection<DemoCommand> actions,
@@ -868,6 +913,7 @@ Widget? _materialIconBuilder(
   'email' => const Icon(Icons.email),
   'delete' => const Icon(Icons.delete),
   'help' => const Icon(Icons.help_outline),
+  'filters' => const Icon(Icons.filter_list),
   'subscriptions' => const Icon(Icons.subscriptions_outlined),
   'download' => const Icon(Icons.download_for_offline_outlined),
   'renderer' => const Icon(Icons.widgets_outlined),

@@ -99,10 +99,13 @@ void main() {
       expect(leaf.children, isEmpty);
       expect(leaf.isEnabled, isFalse);
       expect(leaf.isInvokable, isTrue);
+      expect(leaf.hasMenu, isFalse);
       expect(menu.payload, isNull);
       expect(menu.isInvokable, isFalse);
+      expect(menu.hasMenu, isTrue);
       expect(menu.children, [leaf]);
       expect(composite.payload, 'open-most-recent');
+      expect(composite.hasMenu, isTrue);
       expect(composite.children, [leaf]);
     });
 
@@ -163,24 +166,25 @@ void main() {
       expect(() => menu.children.add(action('third')), throwsUnsupportedError);
     });
 
-    test('rejects empty or divider-only child lists', () {
-      expect(
-        () => AdaptiveAction<String>.menu(
-          id: ActionId('menu'),
-          metadata: const ActionMetadata(label: 'Menu'),
-          children: const [],
-        ),
-        throwsArgumentError,
+    test('allows external menus without declared children', () {
+      final menu = AdaptiveAction<String>.menu(
+        id: ActionId('menu'),
+        metadata: const ActionMetadata(label: 'Menu'),
       );
-      expect(
-        () => AdaptiveAction<String>.composite(
-          id: ActionId('composite'),
-          metadata: const ActionMetadata(label: 'Composite'),
-          payload: 'invoke',
-          children: const [],
-        ),
-        throwsArgumentError,
+      final composite = AdaptiveAction<String>.composite(
+        id: ActionId('composite'),
+        metadata: const ActionMetadata(label: 'Composite'),
+        payload: 'invoke',
       );
+
+      expect(menu.children, isEmpty);
+      expect(menu.hasMenu, isTrue);
+      expect(composite.children, isEmpty);
+      expect(composite.hasMenu, isTrue);
+      expect(() => menu.children.add(action('child')), throwsUnsupportedError);
+    });
+
+    test('rejects a non-empty divider-only child list', () {
       expect(
         () => AdaptiveAction<String>.menu(
           id: ActionId('divider-only'),
@@ -230,6 +234,16 @@ void main() {
       expect(first, second);
       expect(first.hashCode, second.hashCode);
       expect(first, isNot(action('menu')));
+      expect(
+        AdaptiveAction<String>.composite(
+          id: ActionId('menu'),
+          metadata: const ActionMetadata(label: 'menu'),
+          payload: 'menu',
+        ),
+        isNot(action('menu')),
+      );
+      expect(first.toString(), contains('hasMenu: true'));
+      expect(action('menu').toString(), contains('hasMenu: false'));
     });
   });
 }

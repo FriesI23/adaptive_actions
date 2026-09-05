@@ -47,6 +47,14 @@ typedef MaterialActionButtonBuilder<T extends Object> =
       MaterialActionButtonDefaultBuilder<T> defaultBuilder,
     );
 
+/// Builds the complete Material menu content for one adaptive [action].
+///
+/// Return `null` to use the renderer's default recursive rendering of
+/// [AdaptiveAction.children]. A non-null result replaces that complete menu
+/// subtree and must not be empty.
+typedef MaterialActionMenuBuilder<T extends Object> =
+    List<Widget>? Function(BuildContext context, AdaptiveAction<T> action);
+
 /// Builds the default Material overflow-menu trigger.
 typedef MaterialOverflowButtonDefaultBuilder =
     Widget Function(BuildContext context, VoidCallback onPressed);
@@ -233,7 +241,8 @@ final class MaterialAdaptiveActionsStyle {
 /// [actions], and draws the ordered primary and overflow results without
 /// changing the action collection. The overflow trigger is present only while
 /// the resolved overflow region is non-empty. Menu subtrees retain arbitrary
-/// depth and declaration order.
+/// depth and declaration order unless [menuBuilderForAction] replaces one
+/// action's complete menu subtree with caller-owned content.
 ///
 /// Layout changes animate one boundary action instead of replacing the whole
 /// row. Stable actions remain visible while the changing slot fades and
@@ -288,6 +297,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.menuBuilderForAction,
     this.overflowButtonBuilder,
     required this.overflowIcon,
     this.overflowTooltip = '',
@@ -323,6 +333,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.menuBuilderForAction,
     this.overflowButtonBuilder,
     this.presentationForAction,
     this.labelLayoutForAction,
@@ -414,6 +425,13 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
   /// Overrides leaf actions, primary menu triggers, and composite invoke
   /// buttons while preserving the renderer-owned slot constraints.
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
+
+  /// Optionally replaces the complete menu content of each menu action.
+  ///
+  /// Returning `null` retains the default recursive rendering of the action's
+  /// [AdaptiveAction.children]. The builder owns state, callbacks, nested
+  /// content, and item close behavior for every non-null result.
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
 
   /// Overrides the overflow trigger without replacing its anchored menu.
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
@@ -550,6 +568,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
           onInvoke: onInvoke,
           iconBuilder: iconBuilder,
           actionButtonBuilder: actionButtonBuilder,
+          menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
           style: style,
           overflowIcon: overflowIcon,
@@ -658,6 +677,7 @@ final class _MaterialRegionData<T extends Object> {
     required this.onInvoke,
     required this.iconBuilder,
     required this.actionButtonBuilder,
+    required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
     required this.style,
     required this.overflowIcon,
@@ -673,6 +693,7 @@ final class _MaterialRegionData<T extends Object> {
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
   final MaterialAdaptiveActionsStyle style;
   final Widget overflowIcon;
@@ -773,6 +794,7 @@ final class _MaterialRegionSlotView<T extends Object> extends StatelessWidget {
         onInvoke: data.onInvoke,
         iconBuilder: data.iconBuilder,
         actionButtonBuilder: data.actionButtonBuilder,
+        menuBuilderForAction: data.menuBuilderForAction,
         style: data.style,
         menuAnimationEnabled: data.menuAnimationEnabled,
         optionTransition: optionTransition,
@@ -800,6 +822,7 @@ final class _MaterialRegionSlotView<T extends Object> extends StatelessWidget {
       dividerBeforeActionIds: data.overflowDividerBeforeActionIds,
       onInvoke: data.onInvoke,
       iconBuilder: data.iconBuilder,
+      menuBuilderForAction: data.menuBuilderForAction,
       overflowButtonBuilder: data.overflowButtonBuilder,
       style: data.style,
       icon: data.overflowIcon,
@@ -831,6 +854,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
     required this.onInvoke,
     required this.iconBuilder,
     required this.actionButtonBuilder,
+    required this.menuBuilderForAction,
     required this.style,
     required this.menuAnimationEnabled,
     this.optionTransition,
@@ -841,6 +865,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialAdaptiveActionsStyle style;
   final bool menuAnimationEnabled;
   final _MaterialOptionTransition? optionTransition;
@@ -849,7 +874,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
   Widget build(BuildContext context) {
     final action = entry.action;
     final child = switch (action) {
-      _ when action.children.isEmpty => _MaterialInvokeAction<T>(
+      _ when !action.hasMenu => _MaterialInvokeAction<T>(
         action: action,
         visual: visual,
         optionId: entry.optionId,
@@ -865,6 +890,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
         onInvoke: onInvoke,
         iconBuilder: iconBuilder,
         actionButtonBuilder: actionButtonBuilder,
+        menuBuilderForAction: menuBuilderForAction,
         style: style,
         menuAnimationEnabled: menuAnimationEnabled,
         optionTransition: optionTransition,
@@ -876,6 +902,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
         onInvoke: onInvoke,
         iconBuilder: iconBuilder,
         actionButtonBuilder: actionButtonBuilder,
+        menuBuilderForAction: menuBuilderForAction,
         style: style,
         menuAnimationEnabled: menuAnimationEnabled,
         optionTransition: optionTransition,
@@ -930,6 +957,7 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
     required this.onInvoke,
     required this.iconBuilder,
     required this.actionButtonBuilder,
+    required this.menuBuilderForAction,
     required this.style,
     required this.menuAnimationEnabled,
     this.optionTransition,
@@ -941,6 +969,7 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialAdaptiveActionsStyle style;
   final bool menuAnimationEnabled;
   final _MaterialOptionTransition? optionTransition;
@@ -948,16 +977,14 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MenuAnchor(
     animated: menuAnimationEnabled,
-    menuChildren: [
-      for (final child in action.children)
-        if (_materialMenuEntryIsVisible(child))
-          _MaterialMenuEntry<T>(
-            entry: child,
-            onInvoke: onInvoke,
-            iconBuilder: iconBuilder,
-            menuAnimationEnabled: menuAnimationEnabled,
-          ),
-    ],
+    menuChildren: _materialMenuChildren<T>(
+      context: context,
+      action: action,
+      onInvoke: onInvoke,
+      iconBuilder: iconBuilder,
+      menuBuilderForAction: menuBuilderForAction,
+      menuAnimationEnabled: menuAnimationEnabled,
+    ),
     builder: (context, controller, child) =>
         _CustomizableMaterialActionButton<T>(
           action: action,
@@ -979,6 +1006,7 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
     required this.onInvoke,
     required this.iconBuilder,
     required this.actionButtonBuilder,
+    required this.menuBuilderForAction,
     required this.style,
     required this.menuAnimationEnabled,
     this.optionTransition,
@@ -990,6 +1018,7 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialAdaptiveActionsStyle style;
   final bool menuAnimationEnabled;
   final _MaterialOptionTransition? optionTransition;
@@ -1009,16 +1038,14 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
       ),
       MenuAnchor(
         animated: menuAnimationEnabled,
-        menuChildren: [
-          for (final child in action.children)
-            if (_materialMenuEntryIsVisible(child))
-              _MaterialMenuEntry<T>(
-                entry: child,
-                onInvoke: onInvoke,
-                iconBuilder: iconBuilder,
-                menuAnimationEnabled: menuAnimationEnabled,
-              ),
-        ],
+        menuChildren: _materialMenuChildren<T>(
+          context: context,
+          action: action,
+          onInvoke: onInvoke,
+          iconBuilder: iconBuilder,
+          menuBuilderForAction: menuBuilderForAction,
+          menuAnimationEnabled: menuAnimationEnabled,
+        ),
         builder: (context, controller, child) => Tooltip(
           message:
               action.metadata.tooltip ??
@@ -1046,6 +1073,7 @@ final class _MaterialOverflowAction<T extends Object> extends StatefulWidget {
     required this.dividerBeforeActionIds,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
     required this.style,
     required this.icon,
@@ -1057,6 +1085,7 @@ final class _MaterialOverflowAction<T extends Object> extends StatefulWidget {
   final List<ActionId> dividerBeforeActionIds;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
   final MaterialAdaptiveActionsStyle style;
   final Widget icon;
@@ -1090,6 +1119,7 @@ final class _MaterialOverflowActionState<T extends Object>
           entry: action,
           onInvoke: widget.onInvoke,
           iconBuilder: widget.iconBuilder,
+          menuBuilderForAction: widget.menuBuilderForAction,
           menuAnimationEnabled: widget.menuAnimationEnabled,
         ),
       ],
@@ -1120,12 +1150,14 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
     required this.entry,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
     required this.menuAnimationEnabled,
   });
 
   final AdaptiveMenuEntry<T> entry;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final bool menuAnimationEnabled;
 
   @override
@@ -1137,12 +1169,12 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
           : const SizedBox.shrink();
     }
     final action = entry as AdaptiveAction<T>;
-    if (action.children.isEmpty || !action.isEnabled) {
+    if (!action.hasMenu || !action.isEnabled) {
       return _MaterialMenuInvokeItem<T>(
         action: action,
         onInvoke: onInvoke,
         iconBuilder: iconBuilder,
-        showsSubmenuAffordance: action.children.isNotEmpty,
+        showsSubmenuAffordance: action.hasMenu,
       );
     }
 
@@ -1150,9 +1182,67 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
       action: action,
       onInvoke: onInvoke,
       iconBuilder: iconBuilder,
+      menuBuilderForAction: menuBuilderForAction,
       menuAnimationEnabled: menuAnimationEnabled,
     );
   }
+}
+
+List<Widget> _materialMenuChildren<T extends Object>({
+  required BuildContext context,
+  required AdaptiveAction<T> action,
+  required ValueChanged<T> onInvoke,
+  required MaterialActionIconBuilder<T>? iconBuilder,
+  required MaterialActionMenuBuilder<T>? menuBuilderForAction,
+  required bool menuAnimationEnabled,
+  bool includeActionInvocation = false,
+}) {
+  final customChildren = menuBuilderForAction?.call(context, action);
+  if (customChildren != null) {
+    if (customChildren.isEmpty) {
+      throw FlutterError.fromParts([
+        ErrorSummary('A custom Material action menu cannot be empty.'),
+        ErrorDescription(
+          'The menu builder returned no widgets for action ${action.id}.',
+        ),
+        ErrorHint(
+          'Return at least one menu widget, or return null to render the '
+          "action's declared children.",
+        ),
+      ]);
+    }
+    return customChildren;
+  }
+  if (action.children.isEmpty) {
+    throw FlutterError.fromParts([
+      ErrorSummary('A Material menu action has no menu content.'),
+      ErrorDescription(
+        'Action ${action.id} declares hasMenu == true but has no children '
+        'and its menu builder returned null.',
+      ),
+      ErrorHint(
+        'Provide menuBuilderForAction content for this action or declare at '
+        'least one child action.',
+      ),
+    ]);
+  }
+  return [
+    if (includeActionInvocation && action.payload != null)
+      _MaterialMenuInvokeItem<T>(
+        action: action,
+        onInvoke: onInvoke,
+        iconBuilder: iconBuilder,
+      ),
+    for (final child in action.children)
+      if (_materialMenuEntryIsVisible(child))
+        _MaterialMenuEntry<T>(
+          entry: child,
+          onInvoke: onInvoke,
+          iconBuilder: iconBuilder,
+          menuBuilderForAction: menuBuilderForAction,
+          menuAnimationEnabled: menuAnimationEnabled,
+        ),
+  ];
 }
 
 bool _materialMenuEntryIsVisible<T extends Object>(
@@ -1237,12 +1327,14 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
     required this.action,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.menuBuilderForAction,
     required this.menuAnimationEnabled,
   });
 
   final AdaptiveAction<T> action;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
+  final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final bool menuAnimationEnabled;
 
   @override
@@ -1263,22 +1355,15 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
                   iconColor: error,
                 )
               : null,
-          menuChildren: [
-            if (action.payload != null)
-              _MaterialMenuInvokeItem<T>(
-                action: action,
-                onInvoke: onInvoke,
-                iconBuilder: iconBuilder,
-              ),
-            for (final child in action.children)
-              if (_materialMenuEntryIsVisible(child))
-                _MaterialMenuEntry<T>(
-                  entry: child,
-                  onInvoke: onInvoke,
-                  iconBuilder: iconBuilder,
-                  menuAnimationEnabled: menuAnimationEnabled,
-                ),
-          ],
+          menuChildren: _materialMenuChildren<T>(
+            context: context,
+            action: action,
+            onInvoke: onInvoke,
+            iconBuilder: iconBuilder,
+            menuBuilderForAction: menuBuilderForAction,
+            menuAnimationEnabled: menuAnimationEnabled,
+            includeActionInvocation: true,
+          ),
           child: _MaterialMenuLabel(action: action),
         ),
       ),
@@ -1424,7 +1509,7 @@ final class _MaterialActionButton<T extends Object> extends StatelessWidget {
 
   double _invokeWidth(ActionLayoutOptionId optionId) {
     final total = visual.costFor(optionId);
-    final isComposite = action.payload != null && action.children.isNotEmpty;
+    final isComposite = action.payload != null && action.hasMenu;
     return isComposite ? total - style.submenuButtonWidth : total;
   }
 }
@@ -1518,7 +1603,7 @@ final class _AnimatedMaterialActionButton<T extends Object>
 
   double _invokeWidth(ActionLayoutOptionId optionId) {
     final total = visual.costFor(optionId);
-    final isComposite = action.payload != null && action.children.isNotEmpty;
+    final isComposite = action.payload != null && action.hasMenu;
     return isComposite ? total - style.submenuButtonWidth : total;
   }
 }
@@ -1614,7 +1699,7 @@ final class _MaterialActionVisual<T extends Object> {
         labelWidth,
         hasIcon: icon != null,
         iconSize: iconSize,
-        isComposite: action.payload != null && action.children.isNotEmpty,
+        isComposite: action.payload != null && action.hasMenu,
         style: style,
       ),
     ),
@@ -1623,7 +1708,7 @@ final class _MaterialActionVisual<T extends Object> {
         : ActionLayoutOption(
             id: _materialIconOptionId,
             cost: _iconCost(
-              isComposite: action.payload != null && action.children.isNotEmpty,
+              isComposite: action.payload != null && action.hasMenu,
               iconSize: iconSize,
               style: style,
             ),

@@ -66,6 +66,7 @@ void main() {
     Iterable<ActionId> overflowOrderOverride = const [],
     MaterialActionIconBuilder<String>? iconBuilder,
     MaterialActionButtonBuilder<String>? actionButtonBuilder,
+    MaterialActionMenuBuilder<String>? menuBuilderForAction,
     MaterialOverflowButtonBuilder? overflowButtonBuilder,
     MaterialActionPresentationCallback<String>? presentationForAction,
     MaterialActionLabelLayoutCallback<String>? labelLayoutForAction,
@@ -96,6 +97,7 @@ void main() {
         overflowOrderOverride: overflowOrderOverride,
         iconBuilder: iconBuilder,
         actionButtonBuilder: actionButtonBuilder,
+        menuBuilderForAction: menuBuilderForAction,
         overflowButtonBuilder: overflowButtonBuilder,
         presentationForAction: presentationForAction,
         labelLayoutForAction: labelLayoutForAction,
@@ -1711,6 +1713,142 @@ void main() {
     },
   );
 
+  testWidgets('custom primary menu owns persistent multi-select state', (
+    tester,
+  ) async {
+    final legacyChild = action('legacy');
+    final filters = AdaptiveAction<String>.menu(
+      id: ActionId('filters'),
+      metadata: const ActionMetadata(label: 'Filters'),
+      children: [legacyChild],
+    );
+    var vegan = false;
+    var nutFree = false;
+
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setHostState) => pumpTarget(
+          actions: ActionCollection(roots: [filters]),
+          onInvoke: (_) {},
+          menuBuilderForAction: (context, current) => current.id != filters.id
+              ? null
+              : [
+                  CheckboxMenuButton(
+                    value: vegan,
+                    closeOnActivate: false,
+                    onChanged: (value) => setHostState(() => vegan = value!),
+                    child: const Text('Vegan'),
+                  ),
+                  CheckboxMenuButton(
+                    value: nutFree,
+                    closeOnActivate: false,
+                    onChanged: (value) => setHostState(() => nutFree = value!),
+                    child: const Text('Nut-free'),
+                  ),
+                ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+    expect(find.text('legacy'), findsNothing);
+
+    await tester.tap(find.text('Vegan'));
+    await tester.pump();
+    await tester.tap(find.text('Nut-free'));
+    await tester.pump();
+
+    expect(vegan, isTrue);
+    expect(nutFree, isTrue);
+    expect(find.text('Vegan'), findsOneWidget);
+    expect(find.text('Nut-free'), findsOneWidget);
+  });
+
+  testWidgets('custom menu remains action-owned after moving to overflow', (
+    tester,
+  ) async {
+    final filters = AdaptiveAction<String>.menu(
+      id: ActionId('filters'),
+      metadata: const ActionMetadata(label: 'Filters'),
+    );
+    var selected = false;
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [filters]),
+        onInvoke: (_) {},
+        width: 48,
+        maxPrimaryActions: 0,
+        menuBuilderForAction: (context, current) => current.id != filters.id
+            ? null
+            : [
+                StatefulBuilder(
+                  builder: (context, setMenuState) => CheckboxMenuButton(
+                    value: selected,
+                    closeOnActivate: false,
+                    onChanged: (value) => setMenuState(() => selected = value!),
+                    child: const Text('Selected'),
+                  ),
+                ),
+              ],
+      ),
+    );
+
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(SubmenuButton, 'Filters'), findsOneWidget);
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Selected'));
+    await tester.pump();
+
+    expect(selected, isTrue);
+    expect(find.text('Selected'), findsOneWidget);
+    expect(find.byTooltip('More actions'), findsOneWidget);
+  });
+
+  testWidgets('reports a menu action without declared or custom content', (
+    tester,
+  ) async {
+    final empty = AdaptiveAction<String>.menu(
+      id: ActionId('empty-menu'),
+      metadata: const ActionMetadata(label: 'Empty'),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [empty]),
+        onInvoke: (_) {},
+      ),
+    );
+
+    final error = tester.takeException();
+    expect(error, isA<FlutterError>());
+    expect(error.toString(), contains('empty-menu'));
+    expect(error.toString(), contains('menuBuilderForAction'));
+  });
+
+  testWidgets('reports an empty custom menu for its action', (tester) async {
+    final empty = AdaptiveAction<String>.menu(
+      id: ActionId('empty-custom-menu'),
+      metadata: const ActionMetadata(label: 'Empty'),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [empty]),
+        onInvoke: (_) {},
+        menuBuilderForAction: (context, action) => const [],
+      ),
+    );
+
+    final error = tester.takeException();
+    expect(error, isA<FlutterError>());
+    expect(error.toString(), contains('empty-custom-menu'));
+    expect(error.toString(), contains('at least one menu widget'));
+  });
+
   testWidgets('primary menu renders a PopupMenuDivider between actions', (
     tester,
   ) async {
@@ -1845,6 +1983,42 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(invoked, ['open-command', 'recent-command']);
+  });
+
+  testWidgets('custom composite menu replaces its submenu but not invocation', (
+    tester,
+  ) async {
+    final open = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(label: 'Open', iconKey: 'open'),
+      payload: 'open-command',
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [open]),
+        onInvoke: invoked.add,
+        iconBuilder: iconBuilder,
+        menuBuilderForAction: (context, current) => current.id == open.id
+            ? [
+                MenuItemButton(
+                  onPressed: () => invoked.add('custom-command'),
+                  child: const Text('Custom open'),
+                ),
+              ]
+            : null,
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    expect(invoked, ['open-command']);
+    await tester.tap(find.byIcon(Icons.arrow_drop_down));
+    await tester.pumpAndSettle();
+    expect(find.text('open'), findsNothing);
+    await tester.tap(find.text('Custom open'));
+    await tester.pumpAndSettle();
+    expect(invoked, ['open-command', 'custom-command']);
   });
 
   testWidgets('invocation guard dispatches only enabled non-null payloads', (

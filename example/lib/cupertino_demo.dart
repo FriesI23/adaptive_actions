@@ -26,6 +26,8 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
     required this.resizeDuration,
     required this.brightness,
     required this.onInvoke,
+    required this.selectedFilterIds,
+    required this.onFilterToggle,
     this.customOverflowButton = false,
   });
 
@@ -44,6 +46,8 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
   final Duration resizeDuration;
   final Brightness brightness;
   final ValueChanged<T> onInvoke;
+  final Set<String> selectedFilterIds;
+  final ValueChanged<String> onFilterToggle;
   final bool customOverflowButton;
 
   @override
@@ -84,6 +88,8 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
                         fadeDuration: fadeDuration,
                         resizeDuration: resizeDuration,
                         onInvoke: onInvoke,
+                        selectedFilterIds: selectedFilterIds,
+                        onFilterToggle: onFilterToggle,
                         customOverflowButton: customOverflowButton,
                       ),
                     ),
@@ -112,6 +118,8 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
     required this.fadeDuration,
     required this.resizeDuration,
     required this.onInvoke,
+    this.selectedFilterIds = const {},
+    this.onFilterToggle,
     this.customOverflowButton = false,
   });
 
@@ -126,6 +134,8 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
   final Duration fadeDuration;
   final Duration resizeDuration;
   final ValueChanged<T> onInvoke;
+  final Set<String> selectedFilterIds;
+  final ValueChanged<String>? onFilterToggle;
   final bool customOverflowButton;
 
   @override
@@ -145,6 +155,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
       onInvoke: onInvoke,
       iconBuilder: _cupertinoIconBuilder,
       actionButtonBuilder: _cupertinoActionButtonBuilder,
+      menuBuilderForAction: _menuBuilder,
       overflowButtonBuilder: customOverflowButton
           ? _cupertinoOverflowButtonBuilder
           : null,
@@ -158,6 +169,29 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: actionWidth),
       child: region,
+    );
+  }
+
+  List<Widget>? _menuBuilder(BuildContext context, AdaptiveAction<T> action) =>
+      action.id.value != 'filters'
+      ? null
+      : [
+          _checkedMenuItem('Vegan', 'vegan'),
+          _checkedMenuItem('Nut-free', 'nut-free'),
+        ];
+
+  Widget _checkedMenuItem(String label, String id) {
+    final checked = selectedFilterIds.contains(id);
+    return Semantics(
+      checked: checked,
+      child: CupertinoMenuItem(
+        leading: checked
+            ? const Icon(CupertinoIcons.check_mark)
+            : const SizedBox(width: 20),
+        requestCloseOnActivate: false,
+        onPressed: onFilterToggle == null ? null : () => onFilterToggle!(id),
+        child: Text(label),
+      ),
     );
   }
 }
@@ -296,6 +330,7 @@ Widget? _cupertinoIconBuilder<T extends Object>(
   'email' => const Icon(CupertinoIcons.mail),
   'delete' => const Icon(CupertinoIcons.delete),
   'help' => const Icon(CupertinoIcons.question_circle),
+  'filters' => const Icon(CupertinoIcons.slider_horizontal_3),
   'subscriptions' => const Icon(CupertinoIcons.rectangle_stack),
   'download' => const Icon(CupertinoIcons.arrow_down_circle),
   'renderer' => const Icon(CupertinoIcons.device_phone_portrait),
