@@ -16,6 +16,7 @@ void main() {
     test('Cupertino entrypoint exports only core and Cupertino APIs', () {
       expect(_exportsOf('lib/cupertino.dart'), [
         "export 'core.dart';",
+        "export 'src/cupertino/adaptive_cupertino_tooltip.dart';",
         "export 'src/cupertino/cupertino_adaptive_actions.dart';",
         "export 'src/widgets/action_region_layout.dart';",
       ]);

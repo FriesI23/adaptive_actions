@@ -131,15 +131,14 @@ CupertinoAdaptiveActions<DocumentCommand>.moreAction(
 
 这里只需更换 widget 和 icon 映射。
 
-操作的 label、可选 menu subtitle、tooltip 和 semantic label 都来自调用方传入的
-`ActionMetadata`。`subtitle` 会显示在 Material 和 Apple 菜单的 label 下方，
-但不会改变顶部 primary action 或其布局。
-`ActionTooltipPolicy` 默认只为纯图标 primary 控件显示可视 tooltip。每个 action
-可通过 `ActionTooltipPolicy.allowed(...)` 单独启用指定 surface，或通过
-`ActionTooltipPolicy.denied(...)` 单独排除指定 surface；`always()` 和
-`never()` 是快捷方式。无参数的 `allowed()` 与 `denied()` 等价，均表示仅启用
-纯图标的默认策略。renderer 统一通过 `allows(ActionTooltipSurface)` 查询。
-未提供 `tooltip` 时回退到 action label；这一可视策略不会替代辅助功能语义。
+label、menu subtitle、tooltip 和 semantic label 均来自 `ActionMetadata`，其中
+subtitle 只显示在菜单中。可视 tooltip 默认用于纯图标 primary 控件，并使用
+`tooltip ?? label`。每个 action 可通过 `ActionTooltipPolicy.allowed(...)` 或
+`denied(...)` 配置 surface；两者的无参数形式等价，`always()` 和 `never()` 为快捷方式。
+
+Cupertino 默认使用 `AdaptiveCupertinoTooltip`，Material 默认使用 Flutter
+`Tooltip`。通过 renderer 的 `tooltipBuilder` 可一次替换其所有 action 的可视包装；
+tooltip policy 不影响辅助功能语义。
 通用构造器要求显式传入 `overflowIcon`，并保持 `overflowTooltip` 为空；
 `.moreAction` 构造器提供各平台惯用的更多图标，以及明显且可覆盖的
 `More actions` tooltip。需要多语言时，像上面的示例一样传入本地化字符串即可。

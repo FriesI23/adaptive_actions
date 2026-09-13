@@ -10,6 +10,7 @@ import '../widgets/action_invocation.dart';
 import '../widgets/action_region_layout.dart';
 import '../widgets/action_region_slot.dart';
 import '../widgets/single_action_region_host.dart';
+import 'adaptive_cupertino_tooltip.dart';
 
 const _kCupertinoPrimaryDividerWidth = 12.0;
 
@@ -26,37 +27,25 @@ final class _CupertinoTooltip extends StatelessWidget {
   const _CupertinoTooltip({
     required this.message,
     required this.child,
+    this.builder,
     this.visible = true,
   });
 
   final String message;
   final Widget child;
+  final AdaptiveCupertinoTooltipBuilder? builder;
   final bool visible;
 
   @override
-  Widget build(BuildContext context) => !visible || message.isEmpty
-      ? child
-      : RawTooltip(
-          semanticsTooltip: null,
-          ignorePointer: true,
-          tooltipBuilder: (context, animation) => FadeTransition(
-            opacity: animation,
-            child: CupertinoPopupSurface(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Text(
-                  message,
-                  style: CupertinoTheme.of(context).textTheme.textStyle
-                      .copyWith(
-                        color: CupertinoColors.label.resolveFrom(context),
-                        fontSize: 12,
-                      ),
-                ),
-              ),
-            ),
-          ),
+  Widget build(BuildContext context) {
+    if (!visible || message.isEmpty) return child;
+    return builder?.call(context, message, child) ??
+        AdaptiveCupertinoTooltip(
+          message: message,
+          excludeFromSemantics: true,
           child: child,
         );
+  }
 }
 
 final class _CupertinoActionTooltip extends StatelessWidget {
@@ -64,11 +53,13 @@ final class _CupertinoActionTooltip extends StatelessWidget {
     required this.metadata,
     required this.surface,
     required this.child,
+    this.builder,
   });
 
   final ActionMetadata metadata;
   final ActionTooltipSurface surface;
   final Widget child;
+  final AdaptiveCupertinoTooltipBuilder? builder;
 
   String _tooltipMessage() => metadata.tooltip ?? metadata.label;
 
@@ -76,6 +67,7 @@ final class _CupertinoActionTooltip extends StatelessWidget {
   Widget build(BuildContext context) => _CupertinoTooltip(
     message: _tooltipMessage(),
     visible: metadata.tooltipPolicy.allows(surface),
+    builder: builder,
     child: child,
   );
 }
@@ -392,6 +384,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.actionButtonBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
+    this.tooltipBuilder,
     this.onOverflowMenuOpened,
     this.onOverflowMenuClosed,
     this.invokeAfterMenuClosed = false,
@@ -430,6 +423,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.actionButtonBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
+    this.tooltipBuilder,
     this.onOverflowMenuOpened,
     this.onOverflowMenuClosed,
     this.invokeAfterMenuClosed = false,
@@ -533,6 +527,13 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
 
   /// Overrides the overflow trigger without replacing its anchored menu.
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
+
+  /// Overrides the visual tooltip wrapper used by this renderer.
+  ///
+  /// When null, [AdaptiveCupertinoTooltip] provides the Cupertino appearance.
+  /// Visibility, resolved action text, and accessibility semantics remain
+  /// renderer-owned.
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
 
   /// Called when the overflow menu begins opening.
   final VoidCallback? onOverflowMenuOpened;
@@ -675,6 +676,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
           actionButtonBuilder: actionButtonBuilder,
           menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
+          tooltipBuilder: tooltipBuilder,
           onOverflowMenuOpened: onOverflowMenuOpened,
           onOverflowMenuClosed: onOverflowMenuClosed,
           invokeAfterMenuClosed: invokeAfterMenuClosed,
@@ -762,6 +764,7 @@ final class _CupertinoRegionData<T extends Object> {
     required this.actionButtonBuilder,
     required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
+    required this.tooltipBuilder,
     required this.onOverflowMenuOpened,
     required this.onOverflowMenuClosed,
     required this.invokeAfterMenuClosed,
@@ -780,6 +783,7 @@ final class _CupertinoRegionData<T extends Object> {
   final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final VoidCallback? onOverflowMenuOpened;
   final VoidCallback? onOverflowMenuClosed;
   final bool invokeAfterMenuClosed;
@@ -887,6 +891,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
         iconBuilder: data.iconBuilder,
         menuBuilderForAction: data.menuBuilderForAction,
         overflowButtonBuilder: data.overflowButtonBuilder,
+        tooltipBuilder: data.tooltipBuilder,
         onMenuOpened: data.onOverflowMenuOpened,
         onMenuClosed: data.onOverflowMenuClosed,
         invokeAfterMenuClosed: data.invokeAfterMenuClosed,
@@ -915,6 +920,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
               ? () => invokeAdaptiveAction(action, data.onInvoke)
               : null,
           builder: data.actionButtonBuilder,
+          tooltipBuilder: data.tooltipBuilder,
           style: data.style,
           optionTransition: optionTransition,
         ),
@@ -924,6 +930,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
           onInvoke: data.onInvoke,
           iconBuilder: data.iconBuilder,
           menuBuilderForAction: data.menuBuilderForAction,
+          tooltipBuilder: data.tooltipBuilder,
           invokeAfterMenuClosed: data.invokeAfterMenuClosed,
           triggerBuilder: (context, toggle, focusNode) =>
               _CupertinoMenuTriggerFocusHalo(
@@ -934,6 +941,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   width: primarySlot.actionWidth,
                   onPressed: action.isEnabled ? toggle : null,
                   builder: data.actionButtonBuilder,
+                  tooltipBuilder: data.tooltipBuilder,
                   style: data.style,
                   focusColor: CupertinoColors.transparent,
                   focusNode: focusNode,
@@ -953,6 +961,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   ? () => invokeAdaptiveAction(action, data.onInvoke)
                   : null,
               builder: data.actionButtonBuilder,
+              tooltipBuilder: data.tooltipBuilder,
               style: data.style,
               optionTransition: optionTransition,
             ),
@@ -963,6 +972,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
               onInvoke: data.onInvoke,
               iconBuilder: data.iconBuilder,
               menuBuilderForAction: data.menuBuilderForAction,
+              tooltipBuilder: data.tooltipBuilder,
               invokeAfterMenuClosed: data.invokeAfterMenuClosed,
               triggerBuilder: (context, toggle, focusNode) => Semantics(
                 label:
@@ -978,6 +988,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                     child: _CupertinoActionTooltip(
                       metadata: action.metadata,
                       surface: ActionTooltipSurface.primaryIconOnly,
+                      builder: data.tooltipBuilder,
                       child: CupertinoButton(
                         minimumSize: Size.zero,
                         padding: EdgeInsets.zero,
@@ -1031,6 +1042,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
     required this.width,
     required this.onPressed,
     required this.builder,
+    required this.tooltipBuilder,
     required this.style,
     this.focusColor,
     this.focusNode,
@@ -1043,6 +1055,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
   final double width;
   final VoidCallback? onPressed;
   final CupertinoActionButtonBuilder<T>? builder;
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final CupertinoAdaptiveActionsStyle style;
   final Color? focusColor;
   final FocusNode? focusNode;
@@ -1075,6 +1088,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
       surface: targetOptionId == _cupertinoIconOptionId
           ? ActionTooltipSurface.primaryIconOnly
           : ActionTooltipSurface.primaryLabeled,
+      builder: tooltipBuilder,
       child: button,
     );
   }
@@ -1342,6 +1356,7 @@ final class _CupertinoActionMenuAnchor<T extends Object>
     required this.onInvoke,
     required this.iconBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.invokeAfterMenuClosed,
     required this.triggerBuilder,
     this.menuAction,
@@ -1354,6 +1369,7 @@ final class _CupertinoActionMenuAnchor<T extends Object>
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final bool invokeAfterMenuClosed;
   final _CupertinoMenuTriggerBuilder triggerBuilder;
   final AdaptiveAction<T>? menuAction;
@@ -1490,6 +1506,7 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
                     onRequestInvoke: _requestMenuInvocation,
                     iconBuilder: widget.iconBuilder,
                     menuBuilderForAction: widget.menuBuilderForAction,
+                    tooltipBuilder: widget.tooltipBuilder,
                     textDirection: textDirection,
                   ),
             ]
@@ -1499,6 +1516,7 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
               onRequestInvoke: _requestMenuInvocation,
               iconBuilder: widget.iconBuilder,
               menuBuilderForAction: widget.menuBuilderForAction,
+              tooltipBuilder: widget.tooltipBuilder,
               textDirection: textDirection,
               includeActionInvocation: widget.includeActionInvocation,
             ),
@@ -1520,6 +1538,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     required this.iconBuilder,
     required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
+    required this.tooltipBuilder,
     required this.onMenuOpened,
     required this.onMenuClosed,
     required this.invokeAfterMenuClosed,
@@ -1534,6 +1553,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final VoidCallback? onMenuOpened;
   final VoidCallback? onMenuClosed;
   final bool invokeAfterMenuClosed;
@@ -1553,6 +1573,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     onInvoke: onInvoke,
     iconBuilder: iconBuilder,
     menuBuilderForAction: menuBuilderForAction,
+    tooltipBuilder: tooltipBuilder,
     onMenuOpened: onMenuOpened,
     onMenuClosed: onMenuClosed,
     invokeAfterMenuClosed: invokeAfterMenuClosed,
@@ -1568,6 +1589,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
         child: _CupertinoMenuTriggerFocusHalo(
           child: _CupertinoTooltip(
             message: tooltip,
+            builder: tooltipBuilder,
             child: CupertinoButton(
               minimumSize: Size.zero,
               padding: EdgeInsets.zero,
@@ -1594,6 +1616,7 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
     required this.onRequestInvoke,
     required this.iconBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.textDirection,
   });
 
@@ -1601,6 +1624,7 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
   final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final TextDirection textDirection;
 
   @override
@@ -1617,6 +1641,7 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
         action: action,
         onRequestInvoke: onRequestInvoke,
         iconBuilder: iconBuilder,
+        tooltipBuilder: tooltipBuilder,
         textDirection: textDirection,
         showsSubmenuAffordance: action.hasMenu,
       );
@@ -1627,6 +1652,7 @@ final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {
       onRequestInvoke: onRequestInvoke,
       iconBuilder: iconBuilder,
       menuBuilderForAction: menuBuilderForAction,
+      tooltipBuilder: tooltipBuilder,
       textDirection: textDirection,
     );
   }
@@ -1638,6 +1664,7 @@ List<Widget> _cupertinoMenuChildren<T extends Object>({
   required ValueChanged<T> onRequestInvoke,
   required CupertinoActionIconBuilder<T>? iconBuilder,
   required CupertinoActionMenuBuilder<T>? menuBuilderForAction,
+  required AdaptiveCupertinoTooltipBuilder? tooltipBuilder,
   required TextDirection textDirection,
   bool includeActionInvocation = false,
 }) {
@@ -1676,6 +1703,7 @@ List<Widget> _cupertinoMenuChildren<T extends Object>({
         action: action,
         onRequestInvoke: onRequestInvoke,
         iconBuilder: iconBuilder,
+        tooltipBuilder: tooltipBuilder,
         textDirection: textDirection,
       ),
     for (final child in action.children)
@@ -1685,6 +1713,7 @@ List<Widget> _cupertinoMenuChildren<T extends Object>({
           onRequestInvoke: onRequestInvoke,
           iconBuilder: iconBuilder,
           menuBuilderForAction: menuBuilderForAction,
+          tooltipBuilder: tooltipBuilder,
           textDirection: textDirection,
         ),
   ];
@@ -1703,6 +1732,7 @@ final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
     required this.action,
     required this.onRequestInvoke,
     required this.iconBuilder,
+    required this.tooltipBuilder,
     required this.textDirection,
     this.showsSubmenuAffordance = false,
   });
@@ -1710,6 +1740,7 @@ final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
   final AdaptiveAction<T> action;
   final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final TextDirection textDirection;
   final bool showsSubmenuAffordance;
 
@@ -1723,6 +1754,7 @@ final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
     child: _CupertinoActionTooltip(
       metadata: action.metadata,
       surface: ActionTooltipSurface.menuItem,
+      builder: tooltipBuilder,
       child: CupertinoMenuItem(
         leading: iconBuilder?.call(context, action),
         subtitle: action.metadata.subtitle == null
@@ -1748,6 +1780,7 @@ final class _CupertinoSubmenuItem<T extends Object> extends StatefulWidget {
     required this.onRequestInvoke,
     required this.iconBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.textDirection,
   });
 
@@ -1755,6 +1788,7 @@ final class _CupertinoSubmenuItem<T extends Object> extends StatefulWidget {
   final ValueChanged<T> onRequestInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
+  final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final TextDirection textDirection;
 
   @override
@@ -1785,6 +1819,7 @@ final class _CupertinoSubmenuItemState<T extends Object>
         onRequestInvoke: widget.onRequestInvoke,
         iconBuilder: widget.iconBuilder,
         menuBuilderForAction: widget.menuBuilderForAction,
+        tooltipBuilder: widget.tooltipBuilder,
         textDirection: widget.textDirection,
         includeActionInvocation: true,
       ),
@@ -1797,6 +1832,7 @@ final class _CupertinoSubmenuItemState<T extends Object>
         child: _CupertinoActionTooltip(
           metadata: action.metadata,
           surface: ActionTooltipSurface.menuItem,
+          builder: widget.tooltipBuilder,
           child: CupertinoMenuItem(
             leading: widget.iconBuilder?.call(context, action),
             subtitle: action.metadata.subtitle == null

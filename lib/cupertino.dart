@@ -6,5 +6,6 @@
 library;
 
 export 'core.dart';
+export 'src/cupertino/adaptive_cupertino_tooltip.dart';
 export 'src/cupertino/cupertino_adaptive_actions.dart';
 export 'src/widgets/action_region_layout.dart';

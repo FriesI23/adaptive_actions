@@ -83,6 +83,7 @@ void main() {
     CupertinoActionButtonBuilder<String>? actionButtonBuilder,
     CupertinoActionMenuBuilder<String>? menuBuilderForAction,
     CupertinoOverflowButtonBuilder? overflowButtonBuilder,
+    AdaptiveCupertinoTooltipBuilder? tooltipBuilder,
     CupertinoActionPresentationCallback<String>? presentationForAction,
     CupertinoActionLabelLayoutCallback<String>? labelLayoutForAction,
     CupertinoActionPresentation? presentationOverride,
@@ -122,6 +123,7 @@ void main() {
           actionButtonBuilder: actionButtonBuilder,
           menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
+          tooltipBuilder: tooltipBuilder,
           presentationForAction: presentationForAction,
           labelLayoutForAction: labelLayoutForAction,
           presentationOverride: presentationOverride,
@@ -749,6 +751,40 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('custom tooltip builder wraps action and More triggers', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save', iconKey: 'save');
+    final archive = action(
+      'archive',
+      tooltipPolicy: const ActionTooltipPolicy.allowed(menuItem: true),
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save, archive]),
+        onInvoke: (_) {},
+        width: 88,
+        actionIconBuilder: iconBuilder,
+        tooltipBuilder: (context, message, child) =>
+            KeyedSubtree(key: ValueKey('tooltip-$message'), child: child),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('tooltip-Save')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tooltip-More actions')), findsOneWidget);
+    expect(find.byType(RawTooltip), findsNothing);
+
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('tooltip-archive')), findsOneWidget);
+    expect(find.byType(RawTooltip), findsNothing);
   });
 
   testWidgets(

@@ -23,20 +23,27 @@ final class _MaterialTooltip extends StatelessWidget {
   const _MaterialTooltip({
     required this.message,
     required this.child,
+    this.builder,
     this.visible = true,
   });
 
   final String message;
   final Widget child;
+  final MaterialTooltipBuilder? builder;
   final bool visible;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    tooltip: message,
-    child: visible
-        ? Tooltip(message: message, excludeFromSemantics: true, child: child)
-        : child,
-  );
+  Widget build(BuildContext context) {
+    final effectiveChild = !visible || message.isEmpty
+        ? child
+        : builder?.call(context, message, child) ??
+              Tooltip(
+                message: message,
+                excludeFromSemantics: true,
+                child: child,
+              );
+    return Semantics(tooltip: message, child: effectiveChild);
+  }
 }
 
 final class _MaterialActionTooltip extends StatelessWidget {
@@ -44,11 +51,13 @@ final class _MaterialActionTooltip extends StatelessWidget {
     required this.metadata,
     required this.surface,
     required this.child,
+    this.builder,
   });
 
   final ActionMetadata metadata;
   final ActionTooltipSurface surface;
   final Widget child;
+  final MaterialTooltipBuilder? builder;
 
   String _tooltipMessage() => metadata.tooltip ?? metadata.label;
 
@@ -56,9 +65,17 @@ final class _MaterialActionTooltip extends StatelessWidget {
   Widget build(BuildContext context) => _MaterialTooltip(
     message: _tooltipMessage(),
     visible: metadata.tooltipPolicy.allows(surface),
+    builder: builder,
     child: child,
   );
 }
+
+/// Builds a Material tooltip wrapper for [child].
+///
+/// The adaptive-actions renderer resolves tooltip visibility and text before
+/// calling this builder. Accessibility semantics remain renderer-owned.
+typedef MaterialTooltipBuilder =
+    Widget Function(BuildContext context, String message, Widget child);
 
 /// Builds the Material icon associated with an adaptive [action].
 ///
@@ -340,6 +357,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.actionButtonBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
+    this.tooltipBuilder,
     required this.overflowIcon,
     this.overflowTooltip = '',
     this.presentationForAction,
@@ -376,6 +394,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
     this.actionButtonBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
+    this.tooltipBuilder,
     this.presentationForAction,
     this.labelLayoutForAction,
     this.presentationOverride,
@@ -476,6 +495,12 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
 
   /// Overrides the overflow trigger without replacing its anchored menu.
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
+
+  /// Overrides the visual tooltip wrapper used by this renderer.
+  ///
+  /// When null, Flutter's Material [Tooltip] is used. Visibility, resolved
+  /// action text, and accessibility semantics remain renderer-owned.
+  final MaterialTooltipBuilder? tooltipBuilder;
 
   /// Selects a primary-button presentation independently for each root action.
   ///
@@ -611,6 +636,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
           actionButtonBuilder: actionButtonBuilder,
           menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
+          tooltipBuilder: tooltipBuilder,
           style: style,
           overflowIcon: overflowIcon,
           overflowTooltip: overflowTooltip,
@@ -720,6 +746,7 @@ final class _MaterialRegionData<T extends Object> {
     required this.actionButtonBuilder,
     required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
+    required this.tooltipBuilder,
     required this.style,
     required this.overflowIcon,
     required this.overflowTooltip,
@@ -736,6 +763,7 @@ final class _MaterialRegionData<T extends Object> {
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final MaterialAdaptiveActionsStyle style;
   final Widget overflowIcon;
   final String overflowTooltip;
@@ -836,6 +864,7 @@ final class _MaterialRegionSlotView<T extends Object> extends StatelessWidget {
         iconBuilder: data.iconBuilder,
         actionButtonBuilder: data.actionButtonBuilder,
         menuBuilderForAction: data.menuBuilderForAction,
+        tooltipBuilder: data.tooltipBuilder,
         style: data.style,
         menuAnimationEnabled: data.menuAnimationEnabled,
         optionTransition: optionTransition,
@@ -865,6 +894,7 @@ final class _MaterialRegionSlotView<T extends Object> extends StatelessWidget {
       iconBuilder: data.iconBuilder,
       menuBuilderForAction: data.menuBuilderForAction,
       overflowButtonBuilder: data.overflowButtonBuilder,
+      tooltipBuilder: data.tooltipBuilder,
       style: data.style,
       icon: data.overflowIcon,
       tooltip: data.overflowTooltip,
@@ -896,6 +926,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
     required this.iconBuilder,
     required this.actionButtonBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.style,
     required this.menuAnimationEnabled,
     this.optionTransition,
@@ -907,6 +938,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final MaterialAdaptiveActionsStyle style;
   final bool menuAnimationEnabled;
   final _MaterialOptionTransition? optionTransition;
@@ -921,6 +953,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
         optionId: entry.optionId,
         onInvoke: onInvoke,
         actionButtonBuilder: actionButtonBuilder,
+        tooltipBuilder: tooltipBuilder,
         style: style,
         optionTransition: optionTransition,
       ),
@@ -932,6 +965,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
         iconBuilder: iconBuilder,
         actionButtonBuilder: actionButtonBuilder,
         menuBuilderForAction: menuBuilderForAction,
+        tooltipBuilder: tooltipBuilder,
         style: style,
         menuAnimationEnabled: menuAnimationEnabled,
         optionTransition: optionTransition,
@@ -944,6 +978,7 @@ final class _MaterialPrimaryAction<T extends Object> extends StatelessWidget {
         iconBuilder: iconBuilder,
         actionButtonBuilder: actionButtonBuilder,
         menuBuilderForAction: menuBuilderForAction,
+        tooltipBuilder: tooltipBuilder,
         style: style,
         menuAnimationEnabled: menuAnimationEnabled,
         optionTransition: optionTransition,
@@ -964,6 +999,7 @@ final class _MaterialInvokeAction<T extends Object> extends StatelessWidget {
     required this.optionId,
     required this.onInvoke,
     required this.actionButtonBuilder,
+    required this.tooltipBuilder,
     required this.style,
     this.optionTransition,
   });
@@ -973,6 +1009,7 @@ final class _MaterialInvokeAction<T extends Object> extends StatelessWidget {
   final ActionLayoutOptionId optionId;
   final ValueChanged<T> onInvoke;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final MaterialAdaptiveActionsStyle style;
   final _MaterialOptionTransition? optionTransition;
 
@@ -985,6 +1022,7 @@ final class _MaterialInvokeAction<T extends Object> extends StatelessWidget {
         ? () => invokeAdaptiveAction(action, onInvoke)
         : null,
     builder: actionButtonBuilder,
+    tooltipBuilder: tooltipBuilder,
     style: style,
     optionTransition: optionTransition,
   );
@@ -999,6 +1037,7 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
     required this.iconBuilder,
     required this.actionButtonBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.style,
     required this.menuAnimationEnabled,
     this.optionTransition,
@@ -1011,6 +1050,7 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final MaterialAdaptiveActionsStyle style;
   final bool menuAnimationEnabled;
   final _MaterialOptionTransition? optionTransition;
@@ -1024,6 +1064,7 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
       onInvoke: onInvoke,
       iconBuilder: iconBuilder,
       menuBuilderForAction: menuBuilderForAction,
+      tooltipBuilder: tooltipBuilder,
       menuAnimationEnabled: menuAnimationEnabled,
     ),
     builder: (context, controller, child) =>
@@ -1033,6 +1074,7 @@ final class _MaterialMenuAction<T extends Object> extends StatelessWidget {
           optionId: optionId,
           onPressed: action.isEnabled ? controller.open : null,
           builder: actionButtonBuilder,
+          tooltipBuilder: tooltipBuilder,
           style: style,
           optionTransition: optionTransition,
         ),
@@ -1048,6 +1090,7 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
     required this.iconBuilder,
     required this.actionButtonBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.style,
     required this.menuAnimationEnabled,
     this.optionTransition,
@@ -1060,6 +1103,7 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionButtonBuilder<T>? actionButtonBuilder;
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final MaterialAdaptiveActionsStyle style;
   final bool menuAnimationEnabled;
   final _MaterialOptionTransition? optionTransition;
@@ -1074,6 +1118,7 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
         optionId: optionId,
         onInvoke: onInvoke,
         actionButtonBuilder: actionButtonBuilder,
+        tooltipBuilder: tooltipBuilder,
         style: style,
         optionTransition: optionTransition,
       ),
@@ -1085,11 +1130,13 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
           onInvoke: onInvoke,
           iconBuilder: iconBuilder,
           menuBuilderForAction: menuBuilderForAction,
+          tooltipBuilder: tooltipBuilder,
           menuAnimationEnabled: menuAnimationEnabled,
         ),
         builder: (context, controller, child) => _MaterialActionTooltip(
           metadata: action.metadata,
           surface: ActionTooltipSurface.primaryIconOnly,
+          builder: tooltipBuilder,
           child: SizedBox(
             width: style.submenuButtonWidth,
             height: style.height,
@@ -1114,6 +1161,7 @@ final class _MaterialOverflowAction<T extends Object> extends StatefulWidget {
     required this.iconBuilder,
     required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
+    required this.tooltipBuilder,
     required this.style,
     required this.icon,
     required this.tooltip,
@@ -1126,6 +1174,7 @@ final class _MaterialOverflowAction<T extends Object> extends StatefulWidget {
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialOverflowButtonBuilder? overflowButtonBuilder;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final MaterialAdaptiveActionsStyle style;
   final Widget icon;
   final String tooltip;
@@ -1159,6 +1208,7 @@ final class _MaterialOverflowActionState<T extends Object>
           onInvoke: widget.onInvoke,
           iconBuilder: widget.iconBuilder,
           menuBuilderForAction: widget.menuBuilderForAction,
+          tooltipBuilder: widget.tooltipBuilder,
           menuAnimationEnabled: widget.menuAnimationEnabled,
         ),
       ],
@@ -1169,17 +1219,22 @@ final class _MaterialOverflowActionState<T extends Object>
           IconButton(
             focusNode: _focusNode,
             style: _kCompactIconButtonStyle,
-            tooltip: widget.tooltip,
             icon: widget.icon,
             iconSize: widget.style.iconSize,
             onPressed: onPressed,
           );
-      return widget.overflowButtonBuilder?.call(
+      final button =
+          widget.overflowButtonBuilder?.call(
             context,
             onPressed,
             defaultBuilder,
           ) ??
           defaultBuilder(context, onPressed);
+      return _MaterialTooltip(
+        message: widget.tooltip,
+        builder: widget.tooltipBuilder,
+        child: button,
+      );
     },
   );
 }
@@ -1190,6 +1245,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
     required this.onInvoke,
     required this.iconBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.menuAnimationEnabled,
   });
 
@@ -1197,6 +1253,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final bool menuAnimationEnabled;
 
   @override
@@ -1213,6 +1270,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
         action: action,
         onInvoke: onInvoke,
         iconBuilder: iconBuilder,
+        tooltipBuilder: tooltipBuilder,
         showsSubmenuAffordance: action.hasMenu,
       );
     }
@@ -1222,6 +1280,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
       onInvoke: onInvoke,
       iconBuilder: iconBuilder,
       menuBuilderForAction: menuBuilderForAction,
+      tooltipBuilder: tooltipBuilder,
       menuAnimationEnabled: menuAnimationEnabled,
     );
   }
@@ -1233,6 +1292,7 @@ List<Widget> _materialMenuChildren<T extends Object>({
   required ValueChanged<T> onInvoke,
   required MaterialActionIconBuilder<T>? iconBuilder,
   required MaterialActionMenuBuilder<T>? menuBuilderForAction,
+  required MaterialTooltipBuilder? tooltipBuilder,
   required bool menuAnimationEnabled,
   bool includeActionInvocation = false,
 }) {
@@ -1271,6 +1331,7 @@ List<Widget> _materialMenuChildren<T extends Object>({
         action: action,
         onInvoke: onInvoke,
         iconBuilder: iconBuilder,
+        tooltipBuilder: tooltipBuilder,
       ),
     for (final child in action.children)
       if (_materialMenuEntryIsVisible(child))
@@ -1279,6 +1340,7 @@ List<Widget> _materialMenuChildren<T extends Object>({
           onInvoke: onInvoke,
           iconBuilder: iconBuilder,
           menuBuilderForAction: menuBuilderForAction,
+          tooltipBuilder: tooltipBuilder,
           menuAnimationEnabled: menuAnimationEnabled,
         ),
   ];
@@ -1329,12 +1391,14 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
     required this.action,
     required this.onInvoke,
     required this.iconBuilder,
+    required this.tooltipBuilder,
     this.showsSubmenuAffordance = false,
   });
 
   final AdaptiveAction<T> action;
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final bool showsSubmenuAffordance;
 
   @override
@@ -1343,6 +1407,7 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
     return _MaterialActionTooltip(
       metadata: action.metadata,
       surface: ActionTooltipSurface.menuItem,
+      builder: tooltipBuilder,
       child: MenuItemButton(
         semanticsLabel: _materialMenuSemanticsLabel(action.metadata),
         leadingIcon: iconBuilder?.call(context, action),
@@ -1367,6 +1432,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
     required this.onInvoke,
     required this.iconBuilder,
     required this.menuBuilderForAction,
+    required this.tooltipBuilder,
     required this.menuAnimationEnabled,
   });
 
@@ -1374,6 +1440,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
   final ValueChanged<T> onInvoke;
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final bool menuAnimationEnabled;
 
   @override
@@ -1385,6 +1452,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
       child: _MaterialActionTooltip(
         metadata: action.metadata,
         surface: ActionTooltipSurface.menuItem,
+        builder: tooltipBuilder,
         child: SubmenuButton(
           animated: menuAnimationEnabled,
           leadingIcon: iconBuilder?.call(context, action),
@@ -1400,6 +1468,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
             onInvoke: onInvoke,
             iconBuilder: iconBuilder,
             menuBuilderForAction: menuBuilderForAction,
+            tooltipBuilder: tooltipBuilder,
             menuAnimationEnabled: menuAnimationEnabled,
             includeActionInvocation: true,
           ),
@@ -1418,6 +1487,7 @@ final class _CustomizableMaterialActionButton<T extends Object>
     required this.optionId,
     required this.onPressed,
     required this.builder,
+    required this.tooltipBuilder,
     required this.style,
     this.optionTransition,
   });
@@ -1427,6 +1497,7 @@ final class _CustomizableMaterialActionButton<T extends Object>
   final ActionLayoutOptionId optionId;
   final VoidCallback? onPressed;
   final MaterialActionButtonBuilder<T>? builder;
+  final MaterialTooltipBuilder? tooltipBuilder;
   final MaterialAdaptiveActionsStyle style;
   final _MaterialOptionTransition? optionTransition;
 
@@ -1454,6 +1525,7 @@ final class _CustomizableMaterialActionButton<T extends Object>
       surface: targetOptionId == _materialIconOptionId
           ? ActionTooltipSurface.primaryIconOnly
           : ActionTooltipSurface.primaryLabeled,
+      builder: tooltipBuilder,
       child: button,
     );
   }

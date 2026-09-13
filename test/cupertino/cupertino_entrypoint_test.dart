@@ -27,6 +27,12 @@ void main() {
       BuildContext context,
       AdaptiveAction<String> action,
     ) => CupertinoActionPresentation.extended;
+    Widget tooltipBuilder(BuildContext context, String message, Widget child) =>
+        AdaptiveCupertinoTooltip(
+          message: message,
+          excludeFromSemantics: true,
+          child: child,
+        );
 
     await tester.pumpWidget(
       CupertinoApp(
@@ -37,6 +43,7 @@ void main() {
             onInvoke: invoked.add,
             actionButtonBuilder: actionButtonBuilder,
             overflowButtonBuilder: overflowButtonBuilder,
+            tooltipBuilder: tooltipBuilder,
             presentationForAction: presentationForAction,
             fadeDuration: Duration.zero,
             resizeDuration: Duration.zero,

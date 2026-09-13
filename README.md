@@ -138,16 +138,15 @@ CupertinoAdaptiveActions<DocumentCommand>.moreAction(
 
 Only the widget and icon mapping change.
 
-Action labels, optional menu subtitles, tooltips, and semantic labels come from
-your `ActionMetadata` values. A `subtitle` appears below its label in Material
-and Apple menus, but does not change primary action buttons or their layout.
-`ActionTooltipPolicy` shows visual tooltips on icon-only primary controls by
-default. Use `ActionTooltipPolicy.allowed(...)` to opt selected surfaces in or
-`ActionTooltipPolicy.denied(...)` to opt selected surfaces out; `always()` and
-`never()` are shortcuts. The no-argument `allowed()` and `denied()`
-constructors are equivalent and both select the icon-only default. Renderers query the policy through
-`allows(ActionTooltipSurface)`. When `tooltip` is omitted, the action label is
-used. This visual policy does not replace accessibility semantics.
+Labels, menu subtitles, tooltips, and semantic labels come from
+`ActionMetadata`; subtitles appear only in menus. Visual tooltips default to
+icon-only primary controls and use `tooltip ?? label`. Configure surfaces per
+action with `ActionTooltipPolicy.allowed(...)` or `denied(...)`; their empty
+forms are equivalent, while `always()` and `never()` are shortcuts.
+
+Cupertino uses `AdaptiveCupertinoTooltip`; Material uses Flutter's `Tooltip`.
+Set the renderer's `tooltipBuilder` to replace that visual wrapper once for all
+of its actions. Tooltip policy remains separate from accessibility semantics.
 The generic constructors require an explicit `overflowIcon` and keep
 `overflowTooltip` empty. The `.moreAction` constructors add the conventional
 platform More icon and a visible, overridable `More actions` tooltip; pass your

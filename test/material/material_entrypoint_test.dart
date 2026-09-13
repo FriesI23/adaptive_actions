@@ -23,6 +23,8 @@ void main() {
       VoidCallback onPressed,
       MaterialOverflowButtonDefaultBuilder defaultBuilder,
     ) => defaultBuilder(context, onPressed);
+    Widget tooltipBuilder(BuildContext context, String message, Widget child) =>
+        Tooltip(message: message, child: child);
     MaterialActionPresentation? presentationForAction(
       BuildContext context,
       AdaptiveAction<String> action,
@@ -37,6 +39,7 @@ void main() {
             onInvoke: invoked.add,
             actionButtonBuilder: actionButtonBuilder,
             overflowButtonBuilder: overflowButtonBuilder,
+            tooltipBuilder: tooltipBuilder,
             presentationForAction: presentationForAction,
             fadeDuration: Duration.zero,
             resizeDuration: Duration.zero,
