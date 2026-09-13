@@ -22,6 +22,64 @@ Icon _cupertinoForwardIcon(TextDirection textDirection) => Icon(
       : CupertinoIcons.chevron_forward,
 );
 
+final class _CupertinoTooltip extends StatelessWidget {
+  const _CupertinoTooltip({
+    required this.message,
+    required this.child,
+    this.visible = true,
+  });
+
+  final String message;
+  final Widget child;
+  final bool visible;
+
+  @override
+  Widget build(BuildContext context) => !visible || message.isEmpty
+      ? child
+      : RawTooltip(
+          semanticsTooltip: null,
+          ignorePointer: true,
+          tooltipBuilder: (context, animation) => FadeTransition(
+            opacity: animation,
+            child: CupertinoPopupSurface(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Text(
+                  message,
+                  style: CupertinoTheme.of(context).textTheme.textStyle
+                      .copyWith(
+                        color: CupertinoColors.label.resolveFrom(context),
+                        fontSize: 12,
+                      ),
+                ),
+              ),
+            ),
+          ),
+          child: child,
+        );
+}
+
+final class _CupertinoActionTooltip extends StatelessWidget {
+  const _CupertinoActionTooltip({
+    required this.metadata,
+    required this.surface,
+    required this.child,
+  });
+
+  final ActionMetadata metadata;
+  final ActionTooltipSurface surface;
+  final Widget child;
+
+  String _tooltipMessage() => metadata.tooltip ?? metadata.label;
+
+  @override
+  Widget build(BuildContext context) => _CupertinoTooltip(
+    message: _tooltipMessage(),
+    visible: metadata.tooltipPolicy.allows(surface),
+    child: child,
+  );
+}
+
 /// Builds the Cupertino icon associated with an adaptive [action].
 ///
 /// Return `null` when the action has no Cupertino icon. The renderer then uses
@@ -917,15 +975,19 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   width: data.style.submenuButtonWidth,
                   height: data.style.height,
                   child: _CupertinoMenuTriggerFocusHalo(
-                    child: CupertinoButton(
-                      minimumSize: Size.zero,
-                      padding: EdgeInsets.zero,
-                      focusColor: CupertinoColors.transparent,
-                      focusNode: focusNode,
-                      onPressed: action.isEnabled ? toggle : null,
-                      child: Icon(
-                        CupertinoIcons.chevron_down,
-                        size: data.style.iconSize,
+                    child: _CupertinoActionTooltip(
+                      metadata: action.metadata,
+                      surface: ActionTooltipSurface.primaryIconOnly,
+                      child: CupertinoButton(
+                        minimumSize: Size.zero,
+                        padding: EdgeInsets.zero,
+                        focusColor: CupertinoColors.transparent,
+                        focusNode: focusNode,
+                        onPressed: action.isEnabled ? toggle : null,
+                        child: Icon(
+                          CupertinoIcons.chevron_down,
+                          size: data.style.iconSize,
+                        ),
                       ),
                     ),
                   ),
@@ -1004,8 +1066,17 @@ final class _CustomizableCupertinoActionButton<T extends Object>
       optionTransition: optionTransition,
     );
 
-    return builder?.call(context, action, onPressed, defaultBuilder) ??
+    final button =
+        builder?.call(context, action, onPressed, defaultBuilder) ??
         defaultBuilder(context, action, onPressed);
+    final targetOptionId = optionTransition?.to ?? optionId;
+    return _CupertinoActionTooltip(
+      metadata: action.metadata,
+      surface: targetOptionId == _cupertinoIconOptionId
+          ? ActionTooltipSurface.primaryIconOnly
+          : ActionTooltipSurface.primaryLabeled,
+      child: button,
+    );
   }
 }
 
@@ -1495,15 +1566,18 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
         tooltip: tooltip,
         button: true,
         child: _CupertinoMenuTriggerFocusHalo(
-          child: CupertinoButton(
-            minimumSize: Size.zero,
-            padding: EdgeInsets.zero,
-            focusColor: CupertinoColors.transparent,
-            focusNode: focusNode,
-            onPressed: onPressed,
-            child: IconTheme.merge(
-              data: IconThemeData(size: style.iconSize),
-              child: icon ?? this.icon,
+          child: _CupertinoTooltip(
+            message: tooltip,
+            child: CupertinoButton(
+              minimumSize: Size.zero,
+              padding: EdgeInsets.zero,
+              focusColor: CupertinoColors.transparent,
+              focusNode: focusNode,
+              onPressed: onPressed,
+              child: IconTheme.merge(
+                data: IconThemeData(size: style.iconSize),
+                child: icon ?? this.icon,
+              ),
             ),
           ),
         ),
@@ -1646,20 +1720,24 @@ final class _CupertinoMenuInvokeItem<T extends Object> extends StatelessWidget {
     tooltip: action.metadata.tooltip,
     button: true,
     enabled: action.isEnabled,
-    child: CupertinoMenuItem(
-      leading: iconBuilder?.call(context, action),
-      subtitle: action.metadata.subtitle == null
-          ? null
-          : Text(action.metadata.subtitle!),
-      trailing: showsSubmenuAffordance
-          ? _cupertinoForwardIcon(textDirection)
-          : null,
-      isDestructiveAction: action.metadata.isDestructive,
-      requestCloseOnActivate: false,
-      onPressed: action.isEnabled && action.payload != null
-          ? () => invokeAdaptiveAction(action, onRequestInvoke)
-          : null,
-      child: Text(action.metadata.label),
+    child: _CupertinoActionTooltip(
+      metadata: action.metadata,
+      surface: ActionTooltipSurface.menuItem,
+      child: CupertinoMenuItem(
+        leading: iconBuilder?.call(context, action),
+        subtitle: action.metadata.subtitle == null
+            ? null
+            : Text(action.metadata.subtitle!),
+        trailing: showsSubmenuAffordance
+            ? _cupertinoForwardIcon(textDirection)
+            : null,
+        isDestructiveAction: action.metadata.isDestructive,
+        requestCloseOnActivate: false,
+        onPressed: action.isEnabled && action.payload != null
+            ? () => invokeAdaptiveAction(action, onRequestInvoke)
+            : null,
+        child: Text(action.metadata.label),
+      ),
     ),
   );
 }
@@ -1716,17 +1794,21 @@ final class _CupertinoSubmenuItemState<T extends Object>
         tooltip: action.metadata.tooltip,
         button: true,
         enabled: true,
-        child: CupertinoMenuItem(
-          leading: widget.iconBuilder?.call(context, action),
-          subtitle: action.metadata.subtitle == null
-              ? null
-              : Text(action.metadata.subtitle!),
-          trailing: _cupertinoForwardIcon(widget.textDirection),
-          focusNode: _focusNode,
-          isDestructiveAction: action.metadata.isDestructive,
-          requestCloseOnActivate: false,
-          onPressed: controller.isOpen ? controller.close : controller.open,
-          child: Text(action.metadata.label),
+        child: _CupertinoActionTooltip(
+          metadata: action.metadata,
+          surface: ActionTooltipSurface.menuItem,
+          child: CupertinoMenuItem(
+            leading: widget.iconBuilder?.call(context, action),
+            subtitle: action.metadata.subtitle == null
+                ? null
+                : Text(action.metadata.subtitle!),
+            trailing: _cupertinoForwardIcon(widget.textDirection),
+            focusNode: _focusNode,
+            isDestructiveAction: action.metadata.isDestructive,
+            requestCloseOnActivate: false,
+            onPressed: controller.isOpen ? controller.close : controller.open,
+            child: Text(action.metadata.label),
+          ),
         ),
       ),
     );

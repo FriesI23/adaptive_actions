@@ -366,6 +366,15 @@ final class _AdaptiveActionsDemoPageState
           ),
         ),
         DemoSection(
+          title: 'Action tooltips',
+          useCupertino: useCupertino,
+          child: const Text(
+            'Hover with a mouse or long-press with touch. Save demonstrates '
+            'the icon-only default, Open opts a labeled primary action into '
+            'its label fallback, and Delete opts into overflow menu tooltips.',
+          ),
+        ),
+        DemoSection(
           title: 'Animation',
           useCupertino: useCupertino,
           child: DemoAnimationSettings(
@@ -587,7 +596,11 @@ final class _AdaptiveActionsDemoPageState
       divider,
       AdaptiveAction.composite(
         id: ActionId('open'),
-        metadata: const ActionMetadata(label: 'Open', iconKey: 'open'),
+        metadata: const ActionMetadata(
+          label: 'Open',
+          tooltipPolicy: ActionTooltipPolicy.allowed(primaryLabeled: true),
+          iconKey: 'open',
+        ),
         payload: DemoCommand.open,
         isEnabled: _enabled,
         placementPolicy: highRetention,
@@ -659,6 +672,7 @@ final class _AdaptiveActionsDemoPageState
         metadata: const ActionMetadata(
           label: 'Delete',
           tooltip: 'Delete document',
+          tooltipPolicy: ActionTooltipPolicy.allowed(menuItem: true),
           iconKey: 'delete',
           isDestructive: true,
         ),

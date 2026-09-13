@@ -13,6 +13,7 @@ import 'package:flutter/cupertino.dart'
         CupertinoSwitch,
         CupertinoTheme;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -85,6 +86,65 @@ void main() {
       },
     );
   }
+
+  testWidgets('Apple demo shows explicit and label-fallback action tooltips', (
+    tester,
+  ) async {
+    try {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      await tester.pumpWidget(const AdaptiveActionsExampleApp());
+      await tester.pumpAndSettle();
+
+      final actionRegion = find.byKey(appBarActionsKey);
+      final save = find.descendant(
+        of: actionRegion,
+        matching: find.byKey(customSaveButtonKey),
+      );
+      final open = find.descendant(
+        of: actionRegion,
+        matching: find.byKey(customOpenButtonKey),
+      );
+      expect(save, findsOneWidget);
+      expect(open, findsOneWidget);
+      final renderer = tester.widget<CupertinoAdaptiveActions<DemoCommand>>(
+        find.descendant(
+          of: actionRegion,
+          matching: find.byType(CupertinoAdaptiveActions<DemoCommand>),
+        ),
+      );
+      final delete = renderer.actions.roots.singleWhere(
+        (action) => action.id == ActionId('delete'),
+      );
+      expect(
+        delete.metadata.tooltipPolicy.allows(ActionTooltipSurface.menuItem),
+        isTrue,
+      );
+      expect(
+        find.ancestor(of: save, matching: find.byType(RawTooltip)),
+        findsOneWidget,
+      );
+      expect(
+        find.ancestor(of: open, matching: find.byType(RawTooltip)),
+        findsOneWidget,
+      );
+
+      final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: Offset.zero);
+      await pointer.moveTo(tester.getCenter(save));
+      await tester.pumpAndSettle();
+      expect(find.text('Save document'), findsOneWidget);
+
+      await pointer.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      final openLabelsBeforeHover = find.text('Open').evaluate().length;
+      await pointer.moveTo(tester.getCenter(open));
+      await tester.pumpAndSettle();
+      expect(find.text('Open'), findsNWidgets(openLabelsBeforeHover + 1));
+      await pointer.removePointer();
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   for (final renderer in [DemoRenderer.material, DemoRenderer.apple]) {
     testWidgets(

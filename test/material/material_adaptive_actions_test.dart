@@ -38,6 +38,7 @@ void main() {
     String? label,
     String? subtitle,
     String? tooltip,
+    ActionTooltipPolicy tooltipPolicy = const ActionTooltipPolicy.allowed(),
     String? semanticLabel,
     String? iconKey,
     bool isDestructive = false,
@@ -49,6 +50,7 @@ void main() {
       label: label ?? id,
       subtitle: subtitle,
       tooltip: tooltip,
+      tooltipPolicy: tooltipPolicy,
       semanticLabel: semanticLabel,
       iconKey: iconKey,
       isDestructive: isDestructive,
@@ -407,7 +409,7 @@ void main() {
       lessThan(tester.getTopLeft(find.text('save')).dx),
     );
 
-    await tester.tap(find.byTooltip('save'));
+    await tester.tap(find.text('save'));
 
     expect(invoked, ['save-command']);
   });
@@ -1316,7 +1318,7 @@ void main() {
         ),
       );
 
-      expect(find.byTooltip('save'), findsOneWidget);
+      expect(find.text('save'), findsOneWidget);
     },
   );
 
@@ -1351,6 +1353,7 @@ void main() {
       final save = action(
         'save',
         tooltip: 'Save changes',
+        tooltipPolicy: const ActionTooltipPolicy.allowed(primaryLabeled: true),
         semanticLabel: 'Save document',
         iconKey: 'save',
         isEnabled: false,
@@ -1373,6 +1376,84 @@ void main() {
       expect(invoked, isEmpty);
     },
   );
+
+  testWidgets('applies tooltip policy to each primary presentation', (
+    tester,
+  ) async {
+    final icon = action('icon', iconKey: 'save');
+    final labeled = action('labeled', label: 'Labeled');
+    final optedIn = action(
+      'opted-in',
+      label: 'Opted in',
+      tooltipPolicy: const ActionTooltipPolicy.allowed(primaryLabeled: true),
+    );
+    final hiddenIcon = action(
+      'hidden-icon',
+      iconKey: 'open',
+      tooltipPolicy: const ActionTooltipPolicy.never(),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [icon, labeled, optedIn, hiddenIcon]),
+        onInvoke: (_) {},
+        width: 600,
+        iconBuilder: iconBuilder,
+        presentationForAction: (context, current) =>
+            current.id == icon.id || current.id == hiddenIcon.id
+            ? MaterialActionPresentation.iconOnly
+            : MaterialActionPresentation.extended,
+      ),
+    );
+
+    expect(
+      find.ancestor(
+        of: find.byIcon(Icons.save),
+        matching: find.byType(Tooltip),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(of: find.text('Labeled'), matching: find.byType(Tooltip)),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: find.text('Opted in'), matching: find.byType(Tooltip)),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.byIcon(Icons.folder_open),
+        matching: find.byType(Tooltip),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('menu items opt into action tooltips independently', (
+    tester,
+  ) async {
+    final archive = action(
+      'archive',
+      tooltip: 'Move to archive',
+      tooltipPolicy: const ActionTooltipPolicy.allowed(menuItem: true),
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [archive]),
+        onInvoke: (_) {},
+        width: 48,
+      ),
+    );
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Move to archive'), findsOneWidget);
+  });
 
   testWidgets('renders Material menu subtitles without changing primary', (
     tester,
@@ -1703,7 +1784,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byTooltip('More'));
+      await tester.tap(find.text('More'));
       await tester.pumpAndSettle();
       expect(find.text('recent'), findsOneWidget);
 
@@ -1869,7 +1950,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byTooltip('More'));
+    await tester.tap(find.text('More'));
     await tester.pumpAndSettle();
     expect(find.byType(PopupMenuDivider), findsOneWidget);
 
@@ -1946,7 +2027,7 @@ void main() {
         iconBuilder: iconBuilder,
       ),
     );
-    await tester.tap(find.byTooltip('More'));
+    await tester.tap(find.text('More'));
     await tester.pumpAndSettle();
 
     expect(find.byType(PopupMenuDivider), findsNothing);
@@ -2269,7 +2350,7 @@ void main() {
     await tester.tap(find.byTooltip('More actions'));
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Unavailable command'), findsOneWidget);
+    expect(find.byTooltip('Unavailable command'), findsNothing);
     expect(find.bySemanticsLabel('Disabled command'), findsOneWidget);
     expect(find.byIcon(Icons.folder_open), findsOneWidget);
     await tester.tap(find.text('Disabled'));

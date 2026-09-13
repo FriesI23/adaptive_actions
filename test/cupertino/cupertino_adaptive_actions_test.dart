@@ -1,5 +1,6 @@
 import 'package:adaptive_actions/cupertino.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -39,6 +40,7 @@ void main() {
     String? label,
     String? subtitle,
     String? tooltip,
+    ActionTooltipPolicy tooltipPolicy = const ActionTooltipPolicy.allowed(),
     String? semanticLabel,
     String? iconKey,
     bool isDestructive = false,
@@ -50,6 +52,7 @@ void main() {
       label: label ?? id,
       subtitle: subtitle,
       tooltip: tooltip,
+      tooltipPolicy: tooltipPolicy,
       semanticLabel: semanticLabel,
       iconKey: iconKey,
       isDestructive: isDestructive,
@@ -686,6 +689,186 @@ void main() {
 
     expect(find.bySemanticsLabel('Save document'), findsOneWidget);
     await tester.tap(find.text('save'));
+    expect(invoked, isEmpty);
+  });
+
+  testWidgets('applies tooltip policy to each primary presentation', (
+    tester,
+  ) async {
+    final icon = action('icon', iconKey: 'save');
+    final labeled = action('labeled', label: 'Labeled');
+    final optedIn = action(
+      'opted-in',
+      label: 'Opted in',
+      tooltipPolicy: const ActionTooltipPolicy.allowed(primaryLabeled: true),
+    );
+    final hiddenIcon = action(
+      'hidden-icon',
+      iconKey: 'open',
+      tooltipPolicy: const ActionTooltipPolicy.never(),
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [icon, labeled, optedIn, hiddenIcon]),
+        onInvoke: (_) {},
+        width: 600,
+        actionIconBuilder: iconBuilder,
+        presentationForAction: (context, current) =>
+            current.id == icon.id || current.id == hiddenIcon.id
+            ? CupertinoActionPresentation.iconOnly
+            : CupertinoActionPresentation.extended,
+      ),
+    );
+
+    expect(
+      find.ancestor(
+        of: find.byIcon(CupertinoIcons.floppy_disk),
+        matching: find.byType(RawTooltip),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.text('Labeled'),
+        matching: find.byType(RawTooltip),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(
+        of: find.text('Opted in'),
+        matching: find.byType(RawTooltip),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.byIcon(CupertinoIcons.folder_open),
+        matching: find.byType(RawTooltip),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'shows primary, overflow, and menu trigger tooltips on mouse hover',
+    (tester) async {
+      final save = action(
+        'save',
+        label: 'Save',
+        tooltip: 'Save this document',
+        iconKey: 'save',
+      );
+      final archive = action(
+        'archive',
+        label: 'Archive',
+        tooltip: 'Move to archive',
+        tooltipPolicy: const ActionTooltipPolicy.allowed(menuItem: true),
+        placementPolicy: ActionPlacementPolicy(
+          placement: ActionPlacement.overflowOnly,
+        ),
+      );
+      final sort = AdaptiveAction<String>.menu(
+        id: ActionId('sort'),
+        metadata: const ActionMetadata(
+          label: 'Sort',
+          tooltip: 'Choose sort order',
+          tooltipPolicy: ActionTooltipPolicy.allowed(menuItem: true),
+        ),
+        children: [action('date')],
+        placementPolicy: ActionPlacementPolicy(
+          placement: ActionPlacement.overflowOnly,
+        ),
+      );
+
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: ActionCollection(roots: [save, archive, sort]),
+          onInvoke: (_) {},
+          width: 88,
+          actionIconBuilder: iconBuilder,
+        ),
+      );
+
+      final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: Offset.zero);
+
+      Future<void> hoverTooltip(Finder target, String message) async {
+        expect(
+          find.ancestor(of: target, matching: find.byType(RawTooltip)),
+          findsOneWidget,
+        );
+        await pointer.moveTo(tester.getCenter(target));
+        await tester.pumpAndSettle();
+        expect(find.text(message), findsOneWidget);
+      }
+
+      await hoverTooltip(
+        find.byIcon(CupertinoIcons.floppy_disk),
+        'Save this document',
+      );
+      await pointer.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      await hoverTooltip(find.byIcon(CupertinoIcons.ellipsis), 'More actions');
+      await pointer.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+      await tester.pumpAndSettle();
+
+      final archiveItem = find.widgetWithText(CupertinoMenuItem, 'Archive');
+      final sortItem = find.widgetWithText(CupertinoMenuItem, 'Sort');
+      await hoverTooltip(archiveItem, 'Move to archive');
+      await pointer.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      await hoverTooltip(sortItem, 'Choose sort order');
+      await pointer.removePointer();
+    },
+  );
+
+  testWidgets('uses label fallback for touch long-press tooltips', (
+    tester,
+  ) async {
+    final save = action('save', label: 'Save', iconKey: 'save');
+    final archive = action(
+      'archive',
+      label: 'Archive',
+      tooltipPolicy: const ActionTooltipPolicy.allowed(menuItem: true),
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [save, archive]),
+        onInvoke: invoked.add,
+        width: 88,
+        actionIconBuilder: iconBuilder,
+      ),
+    );
+
+    final saveButton = find.byIcon(CupertinoIcons.floppy_disk);
+    expect(
+      find.ancestor(of: saveButton, matching: find.byType(RawTooltip)),
+      findsOneWidget,
+    );
+    expect(tester.getSemantics(find.bySemanticsLabel('Save')).tooltip, isEmpty);
+    await tester.longPress(saveButton);
+    await tester.pump();
+    expect(find.text('Save'), findsOneWidget);
+    expect(invoked, isEmpty);
+
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
+    await tester.pumpAndSettle();
+    final archiveItem = find.widgetWithText(CupertinoMenuItem, 'Archive');
+    expect(
+      find.ancestor(of: archiveItem, matching: find.byType(RawTooltip)),
+      findsOneWidget,
+    );
+    await tester.longPress(archiveItem);
+    await tester.pump();
     expect(invoked, isEmpty);
   });
 

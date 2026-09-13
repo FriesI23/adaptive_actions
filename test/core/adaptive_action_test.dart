@@ -30,6 +30,19 @@ void main() {
       expect(first.hashCode, second.hashCode);
       expect(first.subtitle, isNull);
       expect(first.tooltip, isNull);
+      expect(first.tooltipPolicy, const ActionTooltipPolicy.allowed());
+      expect(
+        first.tooltipPolicy.allows(ActionTooltipSurface.primaryIconOnly),
+        isTrue,
+      );
+      expect(
+        first.tooltipPolicy.allows(ActionTooltipSurface.primaryLabeled),
+        isFalse,
+      );
+      expect(
+        first.tooltipPolicy.allows(ActionTooltipSurface.menuItem),
+        isFalse,
+      );
       expect(first.semanticLabel, isNull);
       expect(first.iconKey, isNull);
       expect(first.isDestructive, isFalse);
@@ -72,6 +85,50 @@ void main() {
         ),
       );
       expect(saveMetadata.toString(), contains('subtitle: Current document'));
+    });
+
+    test('supports immutable tooltip surface policies', () {
+      const custom = ActionTooltipPolicy.allowed(
+        primaryLabeled: true,
+        menuItem: true,
+      );
+
+      expect(
+        custom,
+        const ActionTooltipPolicy.allowed(primaryLabeled: true, menuItem: true),
+      );
+      expect(
+        custom.hashCode,
+        const ActionTooltipPolicy.allowed(
+          primaryLabeled: true,
+          menuItem: true,
+        ).hashCode,
+      );
+      expect(
+        const ActionTooltipPolicy.denied(
+          primaryIconOnly: true,
+          primaryLabeled: false,
+          menuItem: false,
+        ),
+        const ActionTooltipPolicy.allowed(
+          primaryIconOnly: false,
+          primaryLabeled: true,
+          menuItem: true,
+        ),
+      );
+      expect(
+        const ActionTooltipPolicy.allowed(),
+        const ActionTooltipPolicy.denied(),
+      );
+      for (final surface in ActionTooltipSurface.values) {
+        expect(const ActionTooltipPolicy.always().allows(surface), isTrue);
+        expect(const ActionTooltipPolicy.never().allows(surface), isFalse);
+      }
+      expect(custom.toString(), contains('primaryLabeled: true'));
+      expect(
+        const ActionMetadata(label: 'Save', tooltipPolicy: custom),
+        isNot(const ActionMetadata(label: 'Save')),
+      );
     });
   });
 

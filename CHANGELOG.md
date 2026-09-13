@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added per-action tooltip policies with `allowed` and `denied` constructors for
+  icon-only primary controls, labeled primary controls, and menu items, with
+  icon-only tooltips as the default.
+- Applied the same tooltip policy to Material and Cupertino renderers while
+  keeping the global overflow trigger independently configurable.
+
 ## 0.5.0
 
 - Added renderer-specific action menu builders for complete stateful Material

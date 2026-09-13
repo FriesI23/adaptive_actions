@@ -19,6 +19,47 @@ const _kCompactIconButtonStyle = ButtonStyle(
 final _materialLabelOptionId = ActionLayoutOptionId('material.label');
 final _materialIconOptionId = ActionLayoutOptionId('material.icon');
 
+final class _MaterialTooltip extends StatelessWidget {
+  const _MaterialTooltip({
+    required this.message,
+    required this.child,
+    this.visible = true,
+  });
+
+  final String message;
+  final Widget child;
+  final bool visible;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    tooltip: message,
+    child: visible
+        ? Tooltip(message: message, excludeFromSemantics: true, child: child)
+        : child,
+  );
+}
+
+final class _MaterialActionTooltip extends StatelessWidget {
+  const _MaterialActionTooltip({
+    required this.metadata,
+    required this.surface,
+    required this.child,
+  });
+
+  final ActionMetadata metadata;
+  final ActionTooltipSurface surface;
+  final Widget child;
+
+  String _tooltipMessage() => metadata.tooltip ?? metadata.label;
+
+  @override
+  Widget build(BuildContext context) => _MaterialTooltip(
+    message: _tooltipMessage(),
+    visible: metadata.tooltipPolicy.allows(surface),
+    child: child,
+  );
+}
+
 /// Builds the Material icon associated with an adaptive [action].
 ///
 /// Return `null` when the action has no Material icon. The renderer then uses
@@ -1046,11 +1087,9 @@ final class _MaterialCompositeAction<T extends Object> extends StatelessWidget {
           menuBuilderForAction: menuBuilderForAction,
           menuAnimationEnabled: menuAnimationEnabled,
         ),
-        builder: (context, controller, child) => Tooltip(
-          message:
-              action.metadata.tooltip ??
-              action.metadata.semanticLabel ??
-              action.metadata.label,
+        builder: (context, controller, child) => _MaterialActionTooltip(
+          metadata: action.metadata,
+          surface: ActionTooltipSurface.primaryIconOnly,
           child: SizedBox(
             width: style.submenuButtonWidth,
             height: style.height,
@@ -1301,9 +1340,9 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final error = Theme.of(context).colorScheme.error;
-    final tooltip = action.metadata.tooltip ?? action.metadata.label;
-    return Tooltip(
-      message: tooltip,
+    return _MaterialActionTooltip(
+      metadata: action.metadata,
+      surface: ActionTooltipSurface.menuItem,
       child: MenuItemButton(
         semanticsLabel: _materialMenuSemanticsLabel(action.metadata),
         leadingIcon: iconBuilder?.call(context, action),
@@ -1340,12 +1379,12 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final error = Theme.of(context).colorScheme.error;
-    final tooltip = action.metadata.tooltip ?? action.metadata.label;
     return Semantics(
       label: _materialMenuSemanticsLabel(action.metadata),
       excludeSemantics: action.metadata.semanticLabel != null,
-      child: Tooltip(
-        message: tooltip,
+      child: _MaterialActionTooltip(
+        metadata: action.metadata,
+        surface: ActionTooltipSurface.menuItem,
         child: SubmenuButton(
           animated: menuAnimationEnabled,
           leadingIcon: iconBuilder?.call(context, action),
@@ -1406,8 +1445,17 @@ final class _CustomizableMaterialActionButton<T extends Object>
       optionTransition: optionTransition,
     );
 
-    return builder?.call(context, action, onPressed, defaultBuilder) ??
+    final button =
+        builder?.call(context, action, onPressed, defaultBuilder) ??
         defaultBuilder(context, action, onPressed);
+    final targetOptionId = optionTransition?.to ?? optionId;
+    return _MaterialActionTooltip(
+      metadata: action.metadata,
+      surface: targetOptionId == _materialIconOptionId
+          ? ActionTooltipSurface.primaryIconOnly
+          : ActionTooltipSurface.primaryLabeled,
+      child: button,
+    );
   }
 }
 
@@ -1447,22 +1495,18 @@ final class _MaterialActionButton<T extends Object> extends StatelessWidget {
         transition: optionTransition,
       );
     }
-    final tooltip = action.metadata.tooltip ?? action.metadata.label;
     if (optionId == _materialIconOptionId) {
-      return Tooltip(
-        message: tooltip,
-        child: SizedBox(
-          width: _invokeWidth(optionId),
-          height: style.height,
-          child: IconButton(
-            style: _kCompactIconButtonStyle,
-            icon: visual.icon!,
-            iconSize: visual.iconSize,
-            color: action.metadata.isDestructive
-                ? Theme.of(context).colorScheme.error
-                : null,
-            onPressed: action.isEnabled ? onPressed : null,
-          ),
+      return SizedBox(
+        width: _invokeWidth(optionId),
+        height: style.height,
+        child: IconButton(
+          style: _kCompactIconButtonStyle,
+          icon: visual.icon!,
+          iconSize: visual.iconSize,
+          color: action.metadata.isDestructive
+              ? Theme.of(context).colorScheme.error
+              : null,
+          onPressed: action.isEnabled ? onPressed : null,
         ),
       );
     }
@@ -1493,17 +1537,14 @@ final class _MaterialActionButton<T extends Object> extends StatelessWidget {
             ],
           );
 
-    return Tooltip(
-      message: tooltip,
-      child: TextButton(
-        onPressed: action.isEnabled ? onPressed : null,
-        style: TextButton.styleFrom(
-          minimumSize: Size(style.minimumButtonWidth, style.height),
-          padding: EdgeInsets.symmetric(horizontal: style.horizontalPadding),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: child,
+    return TextButton(
+      onPressed: action.isEnabled ? onPressed : null,
+      style: TextButton.styleFrom(
+        minimumSize: Size(style.minimumButtonWidth, style.height),
+        padding: EdgeInsets.symmetric(horizontal: style.horizontalPadding),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
+      child: child,
     );
   }
 
@@ -1546,53 +1587,47 @@ final class _AnimatedMaterialActionButton<T extends Object>
           ? transition.fadeProgress.value
           : 1 - transition.fadeProgress.value;
       final error = Theme.of(context).colorScheme.error;
-      final tooltip = action.metadata.tooltip ?? action.metadata.label;
-      return Tooltip(
-        message: tooltip,
-        child: SizedBox(
-          width: width,
-          height: style.height,
-          child: TextButton(
-            onPressed: action.isEnabled ? onPressed : null,
-            style: TextButton.styleFrom(
-              foregroundColor: action.metadata.isDestructive ? error : null,
-              minimumSize: Size.zero,
-              padding: EdgeInsets.symmetric(
-                horizontal: style.horizontalPadding,
-              ),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: ClipRect(
-              child: OverflowBox(
-                maxWidth: double.infinity,
-                alignment: AlignmentDirectional.centerStart,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconTheme.merge(
-                      data: IconThemeData(size: visual.iconSize),
-                      child: visual.icon!,
-                    ),
-                    ClipRect(
-                      child: Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        widthFactor: labelProgress,
-                        child: Opacity(
-                          opacity: labelProgress,
-                          child: Padding(
-                            padding: EdgeInsetsDirectional.only(
-                              start: style.iconLabelSpacing,
-                            ),
-                            child: _MaterialPrimaryLabel(
-                              label: action.metadata.label,
-                              layout: visual.labelLayout,
-                            ),
+      return SizedBox(
+        width: width,
+        height: style.height,
+        child: TextButton(
+          onPressed: action.isEnabled ? onPressed : null,
+          style: TextButton.styleFrom(
+            foregroundColor: action.metadata.isDestructive ? error : null,
+            minimumSize: Size.zero,
+            padding: EdgeInsets.symmetric(horizontal: style.horizontalPadding),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: ClipRect(
+            child: OverflowBox(
+              maxWidth: double.infinity,
+              alignment: AlignmentDirectional.centerStart,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconTheme.merge(
+                    data: IconThemeData(size: visual.iconSize),
+                    child: visual.icon!,
+                  ),
+                  ClipRect(
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      widthFactor: labelProgress,
+                      child: Opacity(
+                        opacity: labelProgress,
+                        child: Padding(
+                          padding: EdgeInsetsDirectional.only(
+                            start: style.iconLabelSpacing,
+                          ),
+                          child: _MaterialPrimaryLabel(
+                            label: action.metadata.label,
+                            layout: visual.labelLayout,
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
