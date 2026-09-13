@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - Added per-action tooltip policies with `allowed` and `denied` constructors for
   icon-only primary controls, labeled primary controls, and menu items, with
