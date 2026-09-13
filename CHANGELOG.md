@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.1
 
 - Added a public, position-aware `AdaptiveCupertinoTooltip` and renderer-level
   tooltip builder overrides for Cupertino and Material.
