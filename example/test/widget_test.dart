@@ -6,6 +6,8 @@ import 'package:adaptive_actions_example/demo_widgets.dart';
 import 'package:adaptive_actions_example/main.dart';
 import 'package:flutter/cupertino.dart'
     show
+        CupertinoApp,
+        CupertinoColors,
         CupertinoIcons,
         CupertinoNavigationBar,
         CupertinoPageScaffold,
@@ -621,6 +623,71 @@ void main() {
       isTrue,
     );
     expect(find.byKey(customOverflowButtonKey), findsWidgets);
+  });
+
+  testWidgets('Apple example toggles the custom focus halo painter', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const AdaptiveActionsExampleApp());
+    await tester.pumpAndSettle();
+    await invokeDemoControl(
+      tester,
+      label: 'Switch to Apple',
+      useCupertino: false,
+    );
+
+    CupertinoAdaptiveActions<DemoCommand> appBarRenderer() => tester.widget(
+      find.descendant(
+        of: find.byKey(appBarActionsKey),
+        matching: find.byType(CupertinoAdaptiveActions<DemoCommand>),
+      ),
+    );
+
+    expect(appBarRenderer().focusHaloBuilder, isNull);
+    expect(find.byKey(customFocusHaloKey), findsNothing);
+
+    final scrollable = find
+        .descendant(
+          of: find.byKey(previewListKey),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(customFocusHaloSwitchKey),
+      300,
+      scrollable: scrollable,
+    );
+    await tester.tap(find.byKey(customFocusHaloSwitchKey));
+    await tester.pumpAndSettle();
+
+    final renderer = appBarRenderer();
+    final builder = renderer.focusHaloBuilder;
+    expect(builder, isNotNull);
+    expect(find.byKey(customFocusHaloKey), findsWidgets);
+    final rendererContext = tester.element(
+      find.descendant(
+        of: find.byKey(appBarActionsKey),
+        matching: find.byType(CupertinoAdaptiveActions<DemoCommand>),
+      ),
+    );
+    final halo = builder!(
+      rendererContext,
+      child: const SizedBox(width: 100, height: 40),
+      visible: true,
+      decoration: ShapeDecoration(
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
+    await tester.pumpWidget(CupertinoApp(home: Center(child: halo)));
+
+    final focusedHalo = tester.widget<DecoratedBox>(
+      find.byKey(customFocusHaloKey),
+    );
+    final focusedShape =
+        (focusedHalo.decoration as ShapeDecoration).shape as OutlinedBorder;
+    expect(focusedShape.side.color, CupertinoColors.systemOrange);
   });
 
   testWidgets('AppBar action frame is visible by default and can be hidden', (

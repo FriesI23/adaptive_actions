@@ -110,6 +110,20 @@ typedef CupertinoActionButtonBuilder<T extends Object> =
       CupertinoActionButtonDefaultBuilder<T> defaultBuilder,
     );
 
+/// Paints a Cupertino action focus halo over [decoration].
+///
+/// The renderer retains focus, keyboard, semantics, and menu ownership. The
+/// builder only replaces the visual treatment. Its function signature
+/// intentionally matches the sidebar focus hook so an app can reuse one
+/// painter across packages.
+typedef CupertinoActionFocusHaloBuilder =
+    Widget Function(
+      BuildContext context, {
+      required Widget child,
+      required bool visible,
+      required ShapeDecoration decoration,
+    });
+
 /// Builds the complete Cupertino menu content for one adaptive [action].
 ///
 /// Return `null` to use the renderer's default recursive rendering of
@@ -382,6 +396,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.focusHaloBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
     this.tooltipBuilder,
@@ -421,6 +436,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.focusHaloBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
     this.tooltipBuilder,
@@ -517,6 +533,13 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
   /// Overrides leaf actions, primary menu triggers, and composite invoke
   /// buttons while preserving the renderer-owned slot constraints.
   final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
+
+  /// Optional app-owned painter for generated Cupertino action halos.
+  ///
+  /// Null preserves native [CupertinoButton] focus painting and the package's
+  /// matching menu-trigger fallback. A custom [actionButtonBuilder] that does
+  /// not call its default builder owns its complete focus treatment.
+  final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
 
   /// Optionally replaces the complete menu content of each menu action.
   ///
@@ -674,6 +697,7 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
           onInvoke: onInvoke,
           iconBuilder: iconBuilder,
           actionButtonBuilder: actionButtonBuilder,
+          focusHaloBuilder: focusHaloBuilder,
           menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
           tooltipBuilder: tooltipBuilder,
@@ -762,6 +786,7 @@ final class _CupertinoRegionData<T extends Object> {
     required this.onInvoke,
     required this.iconBuilder,
     required this.actionButtonBuilder,
+    required this.focusHaloBuilder,
     required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
     required this.tooltipBuilder,
@@ -781,6 +806,7 @@ final class _CupertinoRegionData<T extends Object> {
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
+  final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
   final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
@@ -891,6 +917,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
         iconBuilder: data.iconBuilder,
         menuBuilderForAction: data.menuBuilderForAction,
         overflowButtonBuilder: data.overflowButtonBuilder,
+        focusHaloBuilder: data.focusHaloBuilder,
         tooltipBuilder: data.tooltipBuilder,
         onMenuOpened: data.onOverflowMenuOpened,
         onMenuClosed: data.onOverflowMenuClosed,
@@ -920,6 +947,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
               ? () => invokeAdaptiveAction(action, data.onInvoke)
               : null,
           builder: data.actionButtonBuilder,
+          focusHaloBuilder: data.focusHaloBuilder,
           tooltipBuilder: data.tooltipBuilder,
           style: data.style,
           optionTransition: optionTransition,
@@ -934,6 +962,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
           invokeAfterMenuClosed: data.invokeAfterMenuClosed,
           triggerBuilder: (context, toggle, focusNode) =>
               _CupertinoMenuTriggerFocusHalo(
+                builder: data.focusHaloBuilder,
                 child: _CustomizableCupertinoActionButton<T>(
                   action: action,
                   visual: visual,
@@ -941,6 +970,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   width: primarySlot.actionWidth,
                   onPressed: action.isEnabled ? toggle : null,
                   builder: data.actionButtonBuilder,
+                  focusHaloBuilder: null,
                   tooltipBuilder: data.tooltipBuilder,
                   style: data.style,
                   focusColor: CupertinoColors.transparent,
@@ -961,6 +991,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   ? () => invokeAdaptiveAction(action, data.onInvoke)
                   : null,
               builder: data.actionButtonBuilder,
+              focusHaloBuilder: data.focusHaloBuilder,
               tooltipBuilder: data.tooltipBuilder,
               style: data.style,
               optionTransition: optionTransition,
@@ -985,6 +1016,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   width: data.style.submenuButtonWidth,
                   height: data.style.height,
                   child: _CupertinoMenuTriggerFocusHalo(
+                    builder: data.focusHaloBuilder,
                     child: _CupertinoActionTooltip(
                       metadata: action.metadata,
                       surface: ActionTooltipSurface.primaryIconOnly,
@@ -1042,6 +1074,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
     required this.width,
     required this.onPressed,
     required this.builder,
+    required this.focusHaloBuilder,
     required this.tooltipBuilder,
     required this.style,
     this.focusColor,
@@ -1055,6 +1088,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
   final double width;
   final VoidCallback? onPressed;
   final CupertinoActionButtonBuilder<T>? builder;
+  final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
   final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final CupertinoAdaptiveActionsStyle style;
   final Color? focusColor;
@@ -1074,6 +1108,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
       width: width,
       onPressed: onPressed,
       style: style,
+      focusHaloBuilder: focusHaloBuilder,
       focusColor: focusColor,
       focusNode: focusNode,
       optionTransition: optionTransition,
@@ -1102,6 +1137,7 @@ final class _CupertinoActionButton<T extends Object> extends StatelessWidget {
     required this.width,
     required this.onPressed,
     required this.style,
+    required this.focusHaloBuilder,
     this.focusColor,
     this.focusNode,
     this.optionTransition,
@@ -1113,6 +1149,7 @@ final class _CupertinoActionButton<T extends Object> extends StatelessWidget {
   final double width;
   final VoidCallback? onPressed;
   final CupertinoAdaptiveActionsStyle style;
+  final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
   final Color? focusColor;
   final FocusNode? focusNode;
   final _CupertinoOptionTransition? optionTransition;
@@ -1133,18 +1170,21 @@ final class _CupertinoActionButton<T extends Object> extends StatelessWidget {
         visual: visual,
         onPressed: onPressed,
         style: style,
+        focusHaloBuilder: focusHaloBuilder,
         transition: transition,
         focusColor: focusColor,
         focusNode: focusNode,
       );
     }
-    return SizedBox(
+    final button = SizedBox(
       width: width,
       height: style.height,
       child: CupertinoButton(
         minimumSize: Size.zero,
         padding: EdgeInsets.symmetric(horizontal: style.horizontalPadding),
-        focusColor: focusColor,
+        focusColor: focusHaloBuilder == null
+            ? focusColor
+            : CupertinoColors.transparent,
         focusNode: focusNode,
         foregroundColor: action.metadata.isDestructive
             ? CupertinoDynamicColor.resolve(CupertinoColors.systemRed, context)
@@ -1164,6 +1204,10 @@ final class _CupertinoActionButton<T extends Object> extends StatelessWidget {
               ),
       ),
     );
+    final builder = focusHaloBuilder;
+    return builder == null
+        ? button
+        : _CupertinoActionFocusHalo(builder: builder, child: button);
   }
 }
 
@@ -1174,6 +1218,7 @@ final class _AnimatedCupertinoActionButton<T extends Object>
     required this.visual,
     required this.onPressed,
     required this.style,
+    required this.focusHaloBuilder,
     required this.transition,
     this.focusColor,
     this.focusNode,
@@ -1183,77 +1228,86 @@ final class _AnimatedCupertinoActionButton<T extends Object>
   final _CupertinoActionVisual<T> visual;
   final VoidCallback? onPressed;
   final CupertinoAdaptiveActionsStyle style;
+  final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
   final _CupertinoOptionTransition transition;
   final Color? focusColor;
   final FocusNode? focusNode;
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([
-      transition.fadeProgress,
-      transition.resizeProgress,
-    ]),
-    builder: (context, child) {
-      final fromWidth = _invokeWidth(transition.from);
-      final toWidth = _invokeWidth(transition.to);
-      final width =
-          fromWidth + (toWidth - fromWidth) * transition.resizeProgress.value;
-      final targetHasLabel = transition.to == _cupertinoLabelOptionId;
-      final labelProgress = targetHasLabel
-          ? transition.fadeProgress.value
-          : 1 - transition.fadeProgress.value;
-      return SizedBox(
-        width: width,
-        height: style.height,
-        child: CupertinoButton(
-          minimumSize: Size.zero,
-          padding: EdgeInsets.symmetric(horizontal: style.horizontalPadding),
-          focusColor: focusColor,
-          focusNode: focusNode,
-          foregroundColor: action.metadata.isDestructive
-              ? CupertinoDynamicColor.resolve(
-                  CupertinoColors.systemRed,
-                  context,
-                )
-              : null,
-          onPressed: action.isEnabled ? onPressed : null,
-          child: ClipRect(
-            child: OverflowBox(
-              maxWidth: double.infinity,
-              alignment: AlignmentDirectional.centerStart,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconTheme.merge(
-                    data: IconThemeData(size: visual.iconSize),
-                    child: visual.icon!,
-                  ),
-                  ClipRect(
-                    child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      widthFactor: labelProgress,
-                      child: Opacity(
-                        opacity: labelProgress,
-                        child: Padding(
-                          padding: EdgeInsetsDirectional.only(
-                            start: style.iconLabelSpacing,
-                          ),
-                          child: _CupertinoPrimaryLabel(
-                            label: action.metadata.label,
-                            layout: visual.labelLayout,
+  Widget build(BuildContext context) {
+    final button = AnimatedBuilder(
+      animation: Listenable.merge([
+        transition.fadeProgress,
+        transition.resizeProgress,
+      ]),
+      builder: (context, child) {
+        final fromWidth = _invokeWidth(transition.from);
+        final toWidth = _invokeWidth(transition.to);
+        final width =
+            fromWidth + (toWidth - fromWidth) * transition.resizeProgress.value;
+        final targetHasLabel = transition.to == _cupertinoLabelOptionId;
+        final labelProgress = targetHasLabel
+            ? transition.fadeProgress.value
+            : 1 - transition.fadeProgress.value;
+        return SizedBox(
+          width: width,
+          height: style.height,
+          child: CupertinoButton(
+            minimumSize: Size.zero,
+            padding: EdgeInsets.symmetric(horizontal: style.horizontalPadding),
+            focusColor: focusHaloBuilder == null
+                ? focusColor
+                : CupertinoColors.transparent,
+            focusNode: focusNode,
+            foregroundColor: action.metadata.isDestructive
+                ? CupertinoDynamicColor.resolve(
+                    CupertinoColors.systemRed,
+                    context,
+                  )
+                : null,
+            onPressed: action.isEnabled ? onPressed : null,
+            child: ClipRect(
+              child: OverflowBox(
+                maxWidth: double.infinity,
+                alignment: AlignmentDirectional.centerStart,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconTheme.merge(
+                      data: IconThemeData(size: visual.iconSize),
+                      child: visual.icon!,
+                    ),
+                    ClipRect(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        widthFactor: labelProgress,
+                        child: Opacity(
+                          opacity: labelProgress,
+                          child: Padding(
+                            padding: EdgeInsetsDirectional.only(
+                              start: style.iconLabelSpacing,
+                            ),
+                            child: _CupertinoPrimaryLabel(
+                              label: action.metadata.label,
+                              layout: visual.labelLayout,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+    final builder = focusHaloBuilder;
+    return builder == null
+        ? button
+        : _CupertinoActionFocusHalo(builder: builder, child: button);
+  }
 
   double _invokeWidth(ActionLayoutOptionId optionId) {
     final total = visual.costFor(optionId);
@@ -1336,17 +1390,64 @@ typedef _CupertinoMenuTriggerBuilder =
     );
 
 final class _CupertinoMenuTriggerFocusHalo extends StatelessWidget {
-  const _CupertinoMenuTriggerFocusHalo({required this.child});
+  const _CupertinoMenuTriggerFocusHalo({
+    required this.child,
+    required this.builder,
+  });
 
   final Widget child;
+  final CupertinoActionFocusHaloBuilder? builder;
 
   @override
-  Widget build(BuildContext context) =>
-      CupertinoFocusHalo.withRoundedSuperellipse(
+  Widget build(BuildContext context) {
+    final builder = this.builder;
+    if (builder == null) {
+      return CupertinoFocusHalo.withRoundedSuperellipse(
         borderRadius:
             kCupertinoButtonSizeBorderRadius[CupertinoButtonSize.large]!,
         child: child,
       );
+    }
+    return _CupertinoActionFocusHalo(builder: builder, child: child);
+  }
+}
+
+final class _CupertinoActionFocusHalo extends StatefulWidget {
+  const _CupertinoActionFocusHalo({required this.builder, required this.child});
+
+  final CupertinoActionFocusHaloBuilder builder;
+  final Widget child;
+
+  @override
+  State<_CupertinoActionFocusHalo> createState() =>
+      _CupertinoActionFocusHaloState();
+}
+
+final class _CupertinoActionFocusHaloState
+    extends State<_CupertinoActionFocusHalo> {
+  bool _childHasFocus = false;
+
+  @override
+  Widget build(BuildContext context) => Focus(
+    canRequestFocus: false,
+    skipTraversal: true,
+    includeSemantics: false,
+    onFocusChange: (hasFocus) {
+      if (_childHasFocus == hasFocus) return;
+      setState(() => _childHasFocus = hasFocus);
+    },
+    child: widget.builder(
+      context,
+      child: widget.child,
+      visible: _childHasFocus,
+      decoration: ShapeDecoration(
+        shape: RoundedSuperellipseBorder(
+          borderRadius:
+              kCupertinoButtonSizeBorderRadius[CupertinoButtonSize.large]!,
+        ),
+      ),
+    ),
+  );
 }
 
 final class _CupertinoActionMenuAnchor<T extends Object>
@@ -1538,6 +1639,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     required this.iconBuilder,
     required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
+    required this.focusHaloBuilder,
     required this.tooltipBuilder,
     required this.onMenuOpened,
     required this.onMenuClosed,
@@ -1553,6 +1655,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
+  final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
   final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final VoidCallback? onMenuOpened;
   final VoidCallback? onMenuClosed;
@@ -1587,6 +1690,7 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
         tooltip: tooltip,
         button: true,
         child: _CupertinoMenuTriggerFocusHalo(
+          builder: focusHaloBuilder,
           child: _CupertinoTooltip(
             message: tooltip,
             builder: tooltipBuilder,

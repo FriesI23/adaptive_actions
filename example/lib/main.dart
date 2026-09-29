@@ -141,6 +141,7 @@ final class _AdaptiveActionsDemoPageState
   bool _enabled = true;
   bool _showAppBarActionFrame = true;
   bool _customOverflowButton = false;
+  bool _customFocusHalo = false;
   final Set<String> _selectedFilters = {};
   Duration _fadeDuration = _kActionsAnimationDuration;
   Duration _resizeDuration = _kActionsAnimationDuration;
@@ -214,6 +215,7 @@ final class _AdaptiveActionsDemoPageState
         brightness: widget.brightness,
         onInvoke: _onInvoke,
         customOverflowButton: _customOverflowButton,
+        customFocusHalo: _customFocusHalo,
         selectedFilterIds: _selectedFilters,
         onFilterToggle: _toggleFilter,
       ),
@@ -361,8 +363,11 @@ final class _AdaptiveActionsDemoPageState
           child: DemoBuilderSettings(
             renderer: _renderer,
             customOverflowButton: _customOverflowButton,
+            customFocusHalo: _customFocusHalo,
             onCustomOverflowButtonChanged: (enabled) =>
                 setState(() => _customOverflowButton = enabled),
+            onCustomFocusHaloChanged: (enabled) =>
+                setState(() => _customFocusHalo = enabled),
           ),
         ),
         DemoSection(
@@ -532,6 +537,7 @@ final class _AdaptiveActionsDemoPageState
       resizeDuration: _resizeDuration,
       onInvoke: _onInvoke,
       customOverflowButton: _customOverflowButton,
+      customFocusHalo: _customFocusHalo,
       selectedFilterIds: _selectedFilters,
       onFilterToggle: _toggleFilter,
     ),
@@ -831,6 +837,7 @@ final class _AdaptiveActionsDemoPageState
       fadeDuration: _fadeDuration,
       resizeDuration: _resizeDuration,
       onInvoke: _onInvoke,
+      customFocusHalo: _customFocusHalo,
     ),
   };
 

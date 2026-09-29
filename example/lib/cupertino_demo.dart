@@ -29,6 +29,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
     required this.selectedFilterIds,
     required this.onFilterToggle,
     this.customOverflowButton = false,
+    this.customFocusHalo = false,
   });
 
   final String title;
@@ -49,6 +50,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
   final Set<String> selectedFilterIds;
   final ValueChanged<String> onFilterToggle;
   final bool customOverflowButton;
+  final bool customFocusHalo;
 
   @override
   Widget build(BuildContext context) => CupertinoTheme(
@@ -91,6 +93,7 @@ final class CupertinoDemoPage<T extends Object> extends StatelessWidget {
                         selectedFilterIds: selectedFilterIds,
                         onFilterToggle: onFilterToggle,
                         customOverflowButton: customOverflowButton,
+                        customFocusHalo: customFocusHalo,
                       ),
                     ),
                   ),
@@ -121,6 +124,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
     this.selectedFilterIds = const {},
     this.onFilterToggle,
     this.customOverflowButton = false,
+    this.customFocusHalo = false,
   });
 
   final ActionCollection<T> actions;
@@ -137,6 +141,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
   final Set<String> selectedFilterIds;
   final ValueChanged<String>? onFilterToggle;
   final bool customOverflowButton;
+  final bool customFocusHalo;
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +164,7 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
       overflowButtonBuilder: customOverflowButton
           ? _cupertinoOverflowButtonBuilder
           : null,
+      focusHaloBuilder: customFocusHalo ? _customFocusHaloBuilder : null,
       overflowTooltip: 'More actions',
       fadeDuration: fadeDuration,
       resizeDuration: resizeDuration,
@@ -171,6 +177,32 @@ final class CupertinoDemoActions<T extends Object> extends StatelessWidget {
       child: region,
     );
   }
+
+  Widget _customFocusHaloBuilder(
+    BuildContext context, {
+    required Widget child,
+    required bool visible,
+    required ShapeDecoration decoration,
+  }) => DecoratedBox(
+    key: customFocusHaloKey,
+    position: DecorationPosition.foreground,
+    decoration: ShapeDecoration(
+      color: decoration.color,
+      image: decoration.image,
+      gradient: decoration.gradient,
+      shadows: decoration.shadows,
+      shape: (decoration.shape as OutlinedBorder).copyWith(
+        side: visible
+            ? const BorderSide(
+                color: CupertinoColors.systemOrange,
+                width: 2.5,
+                strokeAlign: BorderSide.strokeAlignOutside,
+              )
+            : BorderSide.none,
+      ),
+    ),
+    child: child,
+  );
 
   List<Widget>? _menuBuilder(BuildContext context, AdaptiveAction<T> action) =>
       action.id.value != 'filters'

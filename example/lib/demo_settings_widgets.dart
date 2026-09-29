@@ -518,12 +518,16 @@ final class DemoBuilderSettings extends StatelessWidget {
     super.key,
     required this.renderer,
     required this.customOverflowButton,
+    required this.customFocusHalo,
     required this.onCustomOverflowButtonChanged,
+    required this.onCustomFocusHaloChanged,
   });
 
   final DemoRenderer renderer;
   final bool customOverflowButton;
+  final bool customFocusHalo;
   final ValueChanged<bool> onCustomOverflowButtonChanged;
+  final ValueChanged<bool> onCustomFocusHaloChanged;
 
   @override
   Widget build(BuildContext context) => switch (renderer) {
@@ -557,6 +561,13 @@ final class DemoBuilderSettings extends StatelessWidget {
           subtitle: 'Replace only the overflow menu trigger',
           value: customOverflowButton,
           onChanged: onCustomOverflowButtonChanged,
+        ),
+        _CupertinoToggleRow(
+          key: customFocusHaloSwitchKey,
+          title: 'Custom focus halo',
+          subtitle: 'Use the renderer focus painter override',
+          value: customFocusHalo,
+          onChanged: onCustomFocusHaloChanged,
         ),
       ],
     ),

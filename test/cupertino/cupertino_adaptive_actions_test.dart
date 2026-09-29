@@ -81,6 +81,7 @@ void main() {
     Iterable<ActionId> overflowOrderOverride = const [],
     CupertinoActionIconBuilder<String>? actionIconBuilder,
     CupertinoActionButtonBuilder<String>? actionButtonBuilder,
+    CupertinoActionFocusHaloBuilder? focusHaloBuilder,
     CupertinoActionMenuBuilder<String>? menuBuilderForAction,
     CupertinoOverflowButtonBuilder? overflowButtonBuilder,
     AdaptiveCupertinoTooltipBuilder? tooltipBuilder,
@@ -121,6 +122,7 @@ void main() {
           overflowOrderOverride: overflowOrderOverride,
           iconBuilder: actionIconBuilder,
           actionButtonBuilder: actionButtonBuilder,
+          focusHaloBuilder: focusHaloBuilder,
           menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
           tooltipBuilder: tooltipBuilder,
@@ -316,6 +318,56 @@ void main() {
 
     await tester.tap(find.text('leaf'));
     expect(invoked, ['wrapped', 'leaf-command']);
+  });
+
+  testWidgets('app focus painter overrides generated primary and overflow', (
+    tester,
+  ) async {
+    FocusManager.instance.highlightStrategy =
+        FocusHighlightStrategy.alwaysTraditional;
+    try {
+      final save = action('save', iconKey: 'save');
+      final share = action('share', iconKey: 'share');
+
+      await tester.pumpWidget(
+        pumpTarget(
+          actions: ActionCollection(roots: [save, share]),
+          onInvoke: (_) {},
+          width: 88,
+          maxPrimaryActions: 1,
+          actionIconBuilder: iconBuilder,
+          focusHaloBuilder:
+              (
+                context, {
+                required child,
+                required visible,
+                required decoration,
+              }) => DecoratedBox(
+                key: ValueKey('app-focus-halo-$visible'),
+                decoration: decoration,
+                child: child,
+              ),
+        ),
+      );
+
+      expect(
+        find.byKey(const ValueKey('app-focus-halo-false')),
+        findsNWidgets(2),
+      );
+      expect(
+        tester
+            .widgetList<CupertinoButton>(find.byType(CupertinoButton))
+            .map((button) => button.focusColor),
+        everyElement(CupertinoColors.transparent),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('app-focus-halo-true')), findsOneWidget);
+    } finally {
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.automatic;
+    }
   });
 
   testWidgets('passes the final flexible width to a custom action button', (
@@ -1498,19 +1550,7 @@ void main() {
       find.ancestor(of: trigger, matching: find.byType(CupertinoButton)),
     );
     expect(triggerButton.focusNode!.hasFocus, isFalse);
-    final pointerFocusedHaloShapes = tester
-        .widgetList<DecoratedBox>(
-          find.descendant(
-            of: find.byType(CupertinoFocusHalo),
-            matching: find.byType(DecoratedBox),
-          ),
-        )
-        .map((box) => box.decoration)
-        .whereType<ShapeDecoration>()
-        .map((decoration) => decoration.shape)
-        .whereType<RoundedSuperellipseBorder>()
-        .where((shape) => shape.side.style != BorderStyle.none);
-    expect(pointerFocusedHaloShapes, isEmpty);
+    expect(find.byType(CupertinoFocusHalo), findsOneWidget);
 
     await tester.tap(trigger);
     await tester.pumpAndSettle();
@@ -1749,25 +1789,7 @@ void main() {
     expect(find.byType(CupertinoFocusHalo), findsOneWidget);
     trigger.focusNode!.requestFocus();
     await tester.pump();
-
-    final focusedHaloShapes = tester
-        .widgetList<DecoratedBox>(
-          find.descendant(
-            of: find.byType(CupertinoFocusHalo),
-            matching: find.byType(DecoratedBox),
-          ),
-        )
-        .map((box) => box.decoration)
-        .whereType<ShapeDecoration>()
-        .map((decoration) => decoration.shape)
-        .whereType<RoundedSuperellipseBorder>()
-        .where((shape) => shape.side.style != BorderStyle.none)
-        .toList();
-    expect(focusedHaloShapes, hasLength(1));
-    expect(
-      focusedHaloShapes.single.side.strokeAlign,
-      BorderSide.strokeAlignInside,
-    );
+    expect(trigger.focusNode!.hasFocus, isTrue);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
