@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- Added a renderer-level Cupertino focus halo builder for app-owned focus
+  visuals while preserving package-owned focus, keyboard, semantics, and menu
+  behavior.
+- Preserved keyboard navigation when opening, traversing, and dismissing
+  Material and Cupertino action menus.
+
 ## 0.6.1
 
 - Added a public, position-aware `AdaptiveCupertinoTooltip` and renderer-level
