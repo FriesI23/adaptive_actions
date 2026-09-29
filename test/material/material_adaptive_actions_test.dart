@@ -2428,6 +2428,54 @@ void main() {
     expect(invoked, ['run-command']);
   });
 
+  testWidgets('overflow menu takes focus before page content', (tester) async {
+    final run = action(
+      'run',
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    final invoked = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              SizedBox(
+                width: 48,
+                child: MaterialAdaptiveActions<String>.moreAction(
+                  actions: ActionCollection(roots: [run]),
+                  onInvoke: invoked.add,
+                  primaryCapacity: 48,
+                  maxPrimaryActions: 0,
+                ),
+              ),
+              TextButton(onPressed: () {}, child: const Text('Page content')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final trigger = tester.widget<IconButton>(find.byType(IconButton));
+    trigger.focusNode!.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    final focusedContext = FocusManager.instance.primaryFocus?.context;
+    expect(focusedContext, isNotNull);
+    expect(
+      focusedContext!.findAncestorWidgetOfExactType<MenuItemButton>(),
+      isNotNull,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(invoked, ['run-command']);
+  });
+
   testWidgets('integrates placement retention and both region orders', (
     tester,
   ) async {

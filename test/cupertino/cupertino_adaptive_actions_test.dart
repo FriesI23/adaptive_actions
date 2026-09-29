@@ -4,6 +4,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class _HostEscapeIntent extends Intent {
+  const _HostEscapeIntent();
+}
+
 void main() {
   const testPrimaryColor = Color(0xFF6750A4);
 
@@ -103,16 +107,9 @@ void main() {
         ActionRegionMainAxisDistribution.compact,
     ActionRegionLayoutDelegate? layoutDelegate,
     TextScaler textScaler = TextScaler.noScaling,
-  }) => CupertinoApp(
-    builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaler: textScaler),
-      child: child!,
-    ),
-    theme: CupertinoThemeData(
-      brightness: brightness,
-      primaryColor: testPrimaryColor,
-    ),
-    home: CupertinoPageScaffold(
+    Widget Function(Widget child)? homeWrapper,
+  }) {
+    final home = CupertinoPageScaffold(
       child: Center(
         child: CupertinoAdaptiveActions<String>.moreAction(
           actions: actions,
@@ -143,8 +140,19 @@ void main() {
           layoutDelegate: layoutDelegate,
         ),
       ),
-    ),
-  );
+    );
+    return CupertinoApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+        child: child!,
+      ),
+      theme: CupertinoThemeData(
+        brightness: brightness,
+        primaryColor: testPrimaryColor,
+      ),
+      home: homeWrapper?.call(home) ?? home,
+    );
+  }
 
   testWidgets('scales primary text but keeps icon geometry fixed', (
     tester,
@@ -1808,6 +1816,70 @@ void main() {
 
     expect(invoked, ['nested-command']);
     expect(find.byType(CupertinoPopupSurface), findsNothing);
+  });
+
+  testWidgets('submenu escape takes priority over a host shortcut', (
+    tester,
+  ) async {
+    final child = action('nested');
+    final overflow = AdaptiveAction<String>.menu(
+      id: ActionId('overflow'),
+      metadata: const ActionMetadata(label: 'Overflow'),
+      children: [child],
+      placementPolicy: ActionPlacementPolicy(
+        placement: ActionPlacement.overflowOnly,
+      ),
+    );
+    var hostDismissCount = 0;
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [overflow]),
+        onInvoke: (_) {},
+        width: 44,
+        homeWrapper: (child) => Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.escape): _HostEscapeIntent(),
+          },
+          child: Actions(
+            actions: {
+              _HostEscapeIntent: CallbackAction<_HostEscapeIntent>(
+                onInvoke: (intent) {
+                  hostDismissCount += 1;
+                  return null;
+                },
+              ),
+            },
+            child: child,
+          ),
+        ),
+      ),
+    );
+
+    final trigger = tester.widget<CupertinoButton>(
+      find.ancestor(
+        of: find.byIcon(CupertinoIcons.ellipsis),
+        matching: find.byType(CupertinoButton),
+      ),
+    );
+    trigger.focusNode!.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byType(CupertinoPopupSurface), findsNWidgets(2));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(CupertinoPopupSurface), findsNothing);
+    expect(hostDismissCount, 0);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(hostDismissCount, 1);
   });
 
   for (final brightness in Brightness.values) {

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
 import '../../core.dart';
 import '../widgets/action_invocation.dart';
@@ -13,6 +14,14 @@ import '../widgets/single_action_region_host.dart';
 import 'adaptive_cupertino_tooltip.dart';
 
 const _kCupertinoPrimaryDividerWidth = 12.0;
+const _kCupertinoMenuDismissShortcuts = <ShortcutActivator, Intent>{
+  SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+};
+
+List<Widget> _withCupertinoMenuDismissShortcuts(List<Widget> children) => [
+  for (final child in children)
+    Shortcuts(shortcuts: _kCupertinoMenuDismissShortcuts, child: child),
+];
 
 final _cupertinoLabelOptionId = ActionLayoutOptionId('cupertino.label');
 final _cupertinoIconOptionId = ActionLayoutOptionId('cupertino.icon');
@@ -1598,29 +1607,31 @@ final class _CupertinoActionMenuAnchorState<T extends Object>
       childFocusNode: _focusNode,
       onOpen: _handleMenuOpened,
       onClose: _handleMenuClosed,
-      menuChildren: widget.menuAction == null
-          ? [
-              for (final entry in widget.entries)
-                if (_cupertinoMenuEntryIsVisible(entry))
-                  _CupertinoMenuEntry<T>(
-                    entry: entry,
-                    onRequestInvoke: _requestMenuInvocation,
-                    iconBuilder: widget.iconBuilder,
-                    menuBuilderForAction: widget.menuBuilderForAction,
-                    tooltipBuilder: widget.tooltipBuilder,
-                    textDirection: textDirection,
-                  ),
-            ]
-          : _cupertinoMenuChildren<T>(
-              context: context,
-              action: widget.menuAction!,
-              onRequestInvoke: _requestMenuInvocation,
-              iconBuilder: widget.iconBuilder,
-              menuBuilderForAction: widget.menuBuilderForAction,
-              tooltipBuilder: widget.tooltipBuilder,
-              textDirection: textDirection,
-              includeActionInvocation: widget.includeActionInvocation,
-            ),
+      menuChildren: _withCupertinoMenuDismissShortcuts(
+        widget.menuAction == null
+            ? [
+                for (final entry in widget.entries)
+                  if (_cupertinoMenuEntryIsVisible(entry))
+                    _CupertinoMenuEntry<T>(
+                      entry: entry,
+                      onRequestInvoke: _requestMenuInvocation,
+                      iconBuilder: widget.iconBuilder,
+                      menuBuilderForAction: widget.menuBuilderForAction,
+                      tooltipBuilder: widget.tooltipBuilder,
+                      textDirection: textDirection,
+                    ),
+              ]
+            : _cupertinoMenuChildren<T>(
+                context: context,
+                action: widget.menuAction!,
+                onRequestInvoke: _requestMenuInvocation,
+                iconBuilder: widget.iconBuilder,
+                menuBuilderForAction: widget.menuBuilderForAction,
+                tooltipBuilder: widget.tooltipBuilder,
+                textDirection: textDirection,
+                includeActionInvocation: widget.includeActionInvocation,
+              ),
+      ),
       builder: (context, controller, child) => Listener(
         onPointerDown: _handlePointerDown,
         onPointerUp: _handlePointerUp,
@@ -1917,15 +1928,17 @@ final class _CupertinoSubmenuItemState<T extends Object>
     return CupertinoMenuAnchor(
       controller: _controller,
       childFocusNode: _focusNode,
-      menuChildren: _cupertinoMenuChildren<T>(
-        context: context,
-        action: action,
-        onRequestInvoke: widget.onRequestInvoke,
-        iconBuilder: widget.iconBuilder,
-        menuBuilderForAction: widget.menuBuilderForAction,
-        tooltipBuilder: widget.tooltipBuilder,
-        textDirection: widget.textDirection,
-        includeActionInvocation: true,
+      menuChildren: _withCupertinoMenuDismissShortcuts(
+        _cupertinoMenuChildren<T>(
+          context: context,
+          action: action,
+          onRequestInvoke: widget.onRequestInvoke,
+          iconBuilder: widget.iconBuilder,
+          menuBuilderForAction: widget.menuBuilderForAction,
+          tooltipBuilder: widget.tooltipBuilder,
+          textDirection: widget.textDirection,
+          includeActionInvocation: true,
+        ),
       ),
       builder: (context, controller, child) => Semantics(
         label: _cupertinoMenuSemanticsLabel(action.metadata),

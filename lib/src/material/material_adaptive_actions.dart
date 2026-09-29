@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core.dart';
 import '../widgets/action_invocation.dart';
@@ -1187,56 +1188,109 @@ final class _MaterialOverflowAction<T extends Object> extends StatefulWidget {
 
 final class _MaterialOverflowActionState<T extends Object>
     extends State<_MaterialOverflowAction<T>> {
-  final _focusNode = FocusNode(debugLabel: 'Material overflow trigger');
+  late final FocusNode _focusNode;
+  final _menuFocusNodes = <ActionId, FocusNode>{};
+  bool _keyboardActivationPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode(
+      debugLabel: 'Material overflow trigger',
+      onKeyEvent: _handleTriggerKeyEvent,
+    );
+  }
+
+  KeyEventResult _handleTriggerKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter ||
+            event.logicalKey == LogicalKeyboardKey.space ||
+            event.logicalKey == LogicalKeyboardKey.gameButtonA)) {
+      _keyboardActivationPending = true;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  FocusNode _menuFocusNodeFor(AdaptiveAction<T> action) =>
+      _menuFocusNodes.putIfAbsent(
+        action.id,
+        () => FocusNode(debugLabel: 'Material overflow item ${action.id}'),
+      );
 
   @override
   void dispose() {
     _focusNode.dispose();
+    for (final node in _menuFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => MenuAnchor(
-    animated: widget.menuAnimationEnabled,
-    childFocusNode: _focusNode,
-    menuChildren: [
-      for (final action in widget.entries) ...[
-        if (widget.dividerBeforeActionIds.contains(action.id))
-          const PopupMenuDivider(),
-        _MaterialMenuEntry<T>(
-          entry: action,
-          onInvoke: widget.onInvoke,
-          iconBuilder: widget.iconBuilder,
-          menuBuilderForAction: widget.menuBuilderForAction,
-          tooltipBuilder: widget.tooltipBuilder,
-          menuAnimationEnabled: widget.menuAnimationEnabled,
-        ),
+  Widget build(BuildContext context) {
+    final firstEnabledIndex = widget.entries.indexWhere(
+      (action) => action.isEnabled,
+    );
+    return MenuAnchor(
+      animated: widget.menuAnimationEnabled,
+      childFocusNode: _focusNode,
+      menuChildren: [
+        for (final action in widget.entries) ...[
+          if (widget.dividerBeforeActionIds.contains(action.id))
+            const PopupMenuDivider(),
+          _MaterialMenuEntry<T>(
+            entry: action,
+            onInvoke: widget.onInvoke,
+            iconBuilder: widget.iconBuilder,
+            menuBuilderForAction: widget.menuBuilderForAction,
+            tooltipBuilder: widget.tooltipBuilder,
+            menuAnimationEnabled: widget.menuAnimationEnabled,
+            focusNode: _menuFocusNodeFor(action),
+          ),
+        ],
       ],
-    ],
-    builder: (context, controller, child) {
-      final onPressed = controller.isOpen ? controller.close : controller.open;
-      Widget defaultBuilder(BuildContext context, VoidCallback onPressed) =>
-          IconButton(
-            focusNode: _focusNode,
-            style: _kCompactIconButtonStyle,
-            icon: widget.icon,
-            iconSize: widget.style.iconSize,
-            onPressed: onPressed,
-          );
-      final button =
-          widget.overflowButtonBuilder?.call(
-            context,
-            onPressed,
-            defaultBuilder,
-          ) ??
-          defaultBuilder(context, onPressed);
-      return _MaterialTooltip(
-        message: widget.tooltip,
-        builder: widget.tooltipBuilder,
-        child: button,
-      );
-    },
-  );
+      builder: (context, controller, child) {
+        void onPressed() {
+          if (controller.isOpen) {
+            controller.close();
+            return;
+          }
+          final focusMenu = _keyboardActivationPending;
+          _keyboardActivationPending = false;
+          controller.open();
+          if (!focusMenu || firstEnabledIndex < 0) return;
+          final firstAction = widget.entries[firstEnabledIndex];
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && controller.isOpen) {
+              _menuFocusNodeFor(firstAction).requestFocus();
+            }
+          });
+        }
+
+        Widget defaultBuilder(BuildContext context, VoidCallback onPressed) =>
+            IconButton(
+              focusNode: _focusNode,
+              style: _kCompactIconButtonStyle,
+              icon: widget.icon,
+              iconSize: widget.style.iconSize,
+              onPressed: onPressed,
+            );
+        final button =
+            widget.overflowButtonBuilder?.call(
+              context,
+              onPressed,
+              defaultBuilder,
+            ) ??
+            defaultBuilder(context, onPressed);
+        return _MaterialTooltip(
+          message: widget.tooltip,
+          builder: widget.tooltipBuilder,
+          child: button,
+        );
+      },
+    );
+  }
 }
 
 final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
@@ -1247,6 +1301,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
     required this.menuBuilderForAction,
     required this.tooltipBuilder,
     required this.menuAnimationEnabled,
+    this.focusNode,
   });
 
   final AdaptiveMenuEntry<T> entry;
@@ -1255,6 +1310,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialTooltipBuilder? tooltipBuilder;
   final bool menuAnimationEnabled;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -1272,6 +1328,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
         iconBuilder: iconBuilder,
         tooltipBuilder: tooltipBuilder,
         showsSubmenuAffordance: action.hasMenu,
+        focusNode: focusNode,
       );
     }
 
@@ -1282,6 +1339,7 @@ final class _MaterialMenuEntry<T extends Object> extends StatelessWidget {
       menuBuilderForAction: menuBuilderForAction,
       tooltipBuilder: tooltipBuilder,
       menuAnimationEnabled: menuAnimationEnabled,
+      focusNode: focusNode,
     );
   }
 }
@@ -1393,6 +1451,7 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
     required this.iconBuilder,
     required this.tooltipBuilder,
     this.showsSubmenuAffordance = false,
+    this.focusNode,
   });
 
   final AdaptiveAction<T> action;
@@ -1400,6 +1459,7 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
   final MaterialActionIconBuilder<T>? iconBuilder;
   final MaterialTooltipBuilder? tooltipBuilder;
   final bool showsSubmenuAffordance;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -1409,6 +1469,7 @@ final class _MaterialMenuInvokeItem<T extends Object> extends StatelessWidget {
       surface: ActionTooltipSurface.menuItem,
       builder: tooltipBuilder,
       child: MenuItemButton(
+        focusNode: focusNode,
         semanticsLabel: _materialMenuSemanticsLabel(action.metadata),
         leadingIcon: iconBuilder?.call(context, action),
         trailingIcon: showsSubmenuAffordance
@@ -1434,6 +1495,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
     required this.menuBuilderForAction,
     required this.tooltipBuilder,
     required this.menuAnimationEnabled,
+    this.focusNode,
   });
 
   final AdaptiveAction<T> action;
@@ -1442,6 +1504,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
   final MaterialActionMenuBuilder<T>? menuBuilderForAction;
   final MaterialTooltipBuilder? tooltipBuilder;
   final bool menuAnimationEnabled;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -1455,6 +1518,7 @@ final class _MaterialSubmenuItem<T extends Object> extends StatelessWidget {
         builder: tooltipBuilder,
         child: SubmenuButton(
           animated: menuAnimationEnabled,
+          focusNode: focusNode,
           leadingIcon: iconBuilder?.call(context, action),
           style: action.metadata.isDestructive
               ? SubmenuButton.styleFrom(
