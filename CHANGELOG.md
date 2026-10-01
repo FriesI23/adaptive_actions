@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- Added Cupertino icon-only action and submenu button builder overrides so apps
+  can customize presentation while retaining the package-default behavior.
+
 ## 0.7.0
 
 - Added a renderer-level Cupertino focus halo builder for app-owned focus
