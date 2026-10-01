@@ -119,6 +119,26 @@ typedef CupertinoActionButtonBuilder<T extends Object> =
       CupertinoActionButtonDefaultBuilder<T> defaultBuilder,
     );
 
+/// Builds the package-default Cupertino primary submenu trigger.
+typedef CupertinoSubmenuButtonDefaultBuilder<T extends Object> =
+    Widget Function(
+      BuildContext context,
+      AdaptiveAction<T> action,
+      VoidCallback? onPressed,
+    );
+
+/// Overrides a Cupertino primary submenu trigger.
+///
+/// Call [defaultBuilder] from a descendant [BuildContext] to retain the
+/// package-owned button, focus, tooltip, semantics, and menu behavior.
+typedef CupertinoSubmenuButtonBuilder<T extends Object> =
+    Widget Function(
+      BuildContext context,
+      AdaptiveAction<T> action,
+      VoidCallback? onPressed,
+      CupertinoSubmenuButtonDefaultBuilder<T> defaultBuilder,
+    );
+
 /// Paints a Cupertino action focus halo over [decoration].
 ///
 /// The renderer retains focus, keyboard, semantics, and menu ownership. The
@@ -405,6 +425,8 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.iconOnlyButtonBuilder,
+    this.submenuButtonBuilder,
     this.focusHaloBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
@@ -445,6 +467,8 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
     this.maxPrimaryActions,
     this.iconBuilder,
     this.actionButtonBuilder,
+    this.iconOnlyButtonBuilder,
+    this.submenuButtonBuilder,
     this.focusHaloBuilder,
     this.menuBuilderForAction,
     this.overflowButtonBuilder,
@@ -542,6 +566,17 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
   /// Overrides leaf actions, primary menu triggers, and composite invoke
   /// buttons while preserving the renderer-owned slot constraints.
   final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
+
+  /// Optionally wraps package-default primary buttons whose resolved target
+  /// presentation is icon-only.
+  ///
+  /// The wrapper runs before [actionButtonBuilder], so a custom action builder
+  /// can retain this presentation override by calling its default builder or
+  /// take full ownership by returning a replacement.
+  final CupertinoActionButtonBuilder<T>? iconOnlyButtonBuilder;
+
+  /// Overrides primary submenu triggers while retaining menu ownership.
+  final CupertinoSubmenuButtonBuilder<T>? submenuButtonBuilder;
 
   /// Optional app-owned painter for generated Cupertino action halos.
   ///
@@ -706,6 +741,8 @@ final class CupertinoAdaptiveActions<T extends Object> extends StatelessWidget {
           onInvoke: onInvoke,
           iconBuilder: iconBuilder,
           actionButtonBuilder: actionButtonBuilder,
+          iconOnlyButtonBuilder: iconOnlyButtonBuilder,
+          submenuButtonBuilder: submenuButtonBuilder,
           focusHaloBuilder: focusHaloBuilder,
           menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
@@ -795,6 +832,8 @@ final class _CupertinoRegionData<T extends Object> {
     required this.onInvoke,
     required this.iconBuilder,
     required this.actionButtonBuilder,
+    required this.iconOnlyButtonBuilder,
+    required this.submenuButtonBuilder,
     required this.focusHaloBuilder,
     required this.menuBuilderForAction,
     required this.overflowButtonBuilder,
@@ -815,6 +854,8 @@ final class _CupertinoRegionData<T extends Object> {
   final ValueChanged<T> onInvoke;
   final CupertinoActionIconBuilder<T>? iconBuilder;
   final CupertinoActionButtonBuilder<T>? actionButtonBuilder;
+  final CupertinoActionButtonBuilder<T>? iconOnlyButtonBuilder;
+  final CupertinoSubmenuButtonBuilder<T>? submenuButtonBuilder;
   final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
   final CupertinoActionMenuBuilder<T>? menuBuilderForAction;
   final CupertinoOverflowButtonBuilder? overflowButtonBuilder;
@@ -956,6 +997,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
               ? () => invokeAdaptiveAction(action, data.onInvoke)
               : null,
           builder: data.actionButtonBuilder,
+          iconOnlyButtonBuilder: data.iconOnlyButtonBuilder,
           focusHaloBuilder: data.focusHaloBuilder,
           tooltipBuilder: data.tooltipBuilder,
           style: data.style,
@@ -979,6 +1021,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   width: primarySlot.actionWidth,
                   onPressed: action.isEnabled ? toggle : null,
                   builder: data.actionButtonBuilder,
+                  iconOnlyButtonBuilder: data.iconOnlyButtonBuilder,
                   focusHaloBuilder: null,
                   tooltipBuilder: data.tooltipBuilder,
                   style: data.style,
@@ -1000,6 +1043,7 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
                   ? () => invokeAdaptiveAction(action, data.onInvoke)
                   : null,
               builder: data.actionButtonBuilder,
+              iconOnlyButtonBuilder: data.iconOnlyButtonBuilder,
               focusHaloBuilder: data.focusHaloBuilder,
               tooltipBuilder: data.tooltipBuilder,
               style: data.style,
@@ -1014,37 +1058,8 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
               menuBuilderForAction: data.menuBuilderForAction,
               tooltipBuilder: data.tooltipBuilder,
               invokeAfterMenuClosed: data.invokeAfterMenuClosed,
-              triggerBuilder: (context, toggle, focusNode) => Semantics(
-                label:
-                    action.metadata.semanticLabel ??
-                    action.metadata.tooltip ??
-                    action.metadata.label,
-                button: true,
-                enabled: action.isEnabled,
-                child: SizedBox(
-                  width: data.style.submenuButtonWidth,
-                  height: data.style.height,
-                  child: _CupertinoMenuTriggerFocusHalo(
-                    builder: data.focusHaloBuilder,
-                    child: _CupertinoActionTooltip(
-                      metadata: action.metadata,
-                      surface: ActionTooltipSurface.primaryIconOnly,
-                      builder: data.tooltipBuilder,
-                      child: CupertinoButton(
-                        minimumSize: Size.zero,
-                        padding: EdgeInsets.zero,
-                        focusColor: CupertinoColors.transparent,
-                        focusNode: focusNode,
-                        onPressed: action.isEnabled ? toggle : null,
-                        child: Icon(
-                          CupertinoIcons.chevron_down,
-                          size: data.style.iconSize,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              triggerBuilder: (context, toggle, focusNode) =>
+                  _buildSubmenuButton(context, toggle, focusNode, action, data),
             ),
           ],
         ),
@@ -1072,6 +1087,57 @@ final class _CupertinoRegionSlotView<T extends Object> extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildSubmenuButton(
+    BuildContext context,
+    VoidCallback toggle,
+    FocusNode focusNode,
+    AdaptiveAction<T> action,
+    _CupertinoRegionData<T> data,
+  ) {
+    final onPressed = action.isEnabled ? toggle : null;
+
+    Widget defaultBuilder(
+      BuildContext context,
+      AdaptiveAction<T> action,
+      VoidCallback? onPressed,
+    ) => CupertinoButton(
+      minimumSize: Size.zero,
+      padding: EdgeInsets.zero,
+      focusColor: CupertinoColors.transparent,
+      focusNode: focusNode,
+      onPressed: onPressed,
+      child: Icon(CupertinoIcons.chevron_down, size: data.style.iconSize),
+    );
+
+    final button = data.submenuButtonBuilder?.call(
+      context,
+      action,
+      onPressed,
+      defaultBuilder,
+    );
+    return Semantics(
+      label:
+          action.metadata.semanticLabel ??
+          action.metadata.tooltip ??
+          action.metadata.label,
+      button: true,
+      enabled: action.isEnabled,
+      child: SizedBox(
+        width: data.style.submenuButtonWidth,
+        height: data.style.height,
+        child: _CupertinoMenuTriggerFocusHalo(
+          builder: data.focusHaloBuilder,
+          child: _CupertinoActionTooltip(
+            metadata: action.metadata,
+            surface: ActionTooltipSurface.primaryIconOnly,
+            builder: data.tooltipBuilder,
+            child: button ?? defaultBuilder(context, action, onPressed),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 final class _CustomizableCupertinoActionButton<T extends Object>
@@ -1083,6 +1149,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
     required this.width,
     required this.onPressed,
     required this.builder,
+    required this.iconOnlyButtonBuilder,
     required this.focusHaloBuilder,
     required this.tooltipBuilder,
     required this.style,
@@ -1097,6 +1164,7 @@ final class _CustomizableCupertinoActionButton<T extends Object>
   final double width;
   final VoidCallback? onPressed;
   final CupertinoActionButtonBuilder<T>? builder;
+  final CupertinoActionButtonBuilder<T>? iconOnlyButtonBuilder;
   final CupertinoActionFocusHaloBuilder? focusHaloBuilder;
   final AdaptiveCupertinoTooltipBuilder? tooltipBuilder;
   final CupertinoAdaptiveActionsStyle style;
@@ -1106,6 +1174,41 @@ final class _CustomizableCupertinoActionButton<T extends Object>
 
   @override
   Widget build(BuildContext context) {
+    final targetOptionId = optionTransition?.to ?? optionId;
+    final button =
+        builder?.call(
+          context,
+          action,
+          onPressed,
+          (context, action, onPressed) => _buildEffectiveDefaultButton(
+            context,
+            action,
+            onPressed,
+            targetOptionId,
+          ),
+        ) ??
+        _buildEffectiveDefaultButton(
+          context,
+          action,
+          onPressed,
+          targetOptionId,
+        );
+    return _CupertinoActionTooltip(
+      metadata: action.metadata,
+      surface: targetOptionId == _cupertinoIconOptionId
+          ? ActionTooltipSurface.primaryIconOnly
+          : ActionTooltipSurface.primaryLabeled,
+      builder: tooltipBuilder,
+      child: button,
+    );
+  }
+
+  Widget _buildEffectiveDefaultButton(
+    BuildContext context,
+    AdaptiveAction<T> action,
+    VoidCallback? onPressed,
+    ActionLayoutOptionId targetOptionId,
+  ) {
     Widget defaultBuilder(
       BuildContext context,
       AdaptiveAction<T> action,
@@ -1123,18 +1226,16 @@ final class _CustomizableCupertinoActionButton<T extends Object>
       optionTransition: optionTransition,
     );
 
-    final button =
-        builder?.call(context, action, onPressed, defaultBuilder) ??
+    if (targetOptionId != _cupertinoIconOptionId) {
+      return defaultBuilder(context, action, onPressed);
+    }
+    return iconOnlyButtonBuilder?.call(
+          context,
+          action,
+          onPressed,
+          defaultBuilder,
+        ) ??
         defaultBuilder(context, action, onPressed);
-    final targetOptionId = optionTransition?.to ?? optionId;
-    return _CupertinoActionTooltip(
-      metadata: action.metadata,
-      surface: targetOptionId == _cupertinoIconOptionId
-          ? ActionTooltipSurface.primaryIconOnly
-          : ActionTooltipSurface.primaryLabeled,
-      builder: tooltipBuilder,
-      child: button,
-    );
   }
 }
 
@@ -1691,38 +1792,45 @@ final class _CupertinoOverflowAction<T extends Object> extends StatelessWidget {
     onMenuOpened: onMenuOpened,
     onMenuClosed: onMenuClosed,
     invokeAfterMenuClosed: invokeAfterMenuClosed,
-    triggerBuilder: (context, toggle, focusNode) {
-      Widget defaultBuilder(
-        BuildContext context,
-        VoidCallback onPressed, {
-        Widget? icon,
-      }) => Semantics(
-        label: tooltip,
-        tooltip: tooltip,
-        button: true,
-        child: _CupertinoMenuTriggerFocusHalo(
-          builder: focusHaloBuilder,
-          child: _CupertinoTooltip(
-            message: tooltip,
-            builder: tooltipBuilder,
-            child: CupertinoButton(
-              minimumSize: Size.zero,
-              padding: EdgeInsets.zero,
-              focusColor: CupertinoColors.transparent,
-              focusNode: focusNode,
-              onPressed: onPressed,
-              child: IconTheme.merge(
-                data: IconThemeData(size: style.iconSize),
-                child: icon ?? this.icon,
-              ),
+    triggerBuilder: _buildButton,
+  );
+
+  Widget _buildButton(
+    BuildContext context,
+    VoidCallback onPressed,
+    FocusNode focusNode,
+  ) {
+    Widget defaultBuilder(
+      BuildContext context,
+      VoidCallback onPressed, {
+      Widget? icon,
+    }) => Semantics(
+      label: tooltip,
+      tooltip: tooltip,
+      button: true,
+      child: _CupertinoMenuTriggerFocusHalo(
+        builder: focusHaloBuilder,
+        child: _CupertinoTooltip(
+          message: tooltip,
+          builder: tooltipBuilder,
+          child: CupertinoButton(
+            minimumSize: Size.zero,
+            padding: EdgeInsets.zero,
+            focusColor: CupertinoColors.transparent,
+            focusNode: focusNode,
+            onPressed: onPressed,
+            child: IconTheme.merge(
+              data: IconThemeData(size: style.iconSize),
+              child: icon ?? this.icon,
             ),
           ),
         ),
-      );
-      return overflowButtonBuilder?.call(context, toggle, defaultBuilder) ??
-          defaultBuilder(context, toggle);
-    },
-  );
+      ),
+    );
+
+    return overflowButtonBuilder?.call(context, onPressed, defaultBuilder) ??
+        defaultBuilder(context, onPressed);
+  }
 }
 
 final class _CupertinoMenuEntry<T extends Object> extends StatelessWidget {

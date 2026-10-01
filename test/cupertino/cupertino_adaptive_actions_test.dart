@@ -85,6 +85,8 @@ void main() {
     Iterable<ActionId> overflowOrderOverride = const [],
     CupertinoActionIconBuilder<String>? actionIconBuilder,
     CupertinoActionButtonBuilder<String>? actionButtonBuilder,
+    CupertinoActionButtonBuilder<String>? iconOnlyButtonBuilder,
+    CupertinoSubmenuButtonBuilder<String>? submenuButtonBuilder,
     CupertinoActionFocusHaloBuilder? focusHaloBuilder,
     CupertinoActionMenuBuilder<String>? menuBuilderForAction,
     CupertinoOverflowButtonBuilder? overflowButtonBuilder,
@@ -119,6 +121,8 @@ void main() {
           overflowOrderOverride: overflowOrderOverride,
           iconBuilder: actionIconBuilder,
           actionButtonBuilder: actionButtonBuilder,
+          iconOnlyButtonBuilder: iconOnlyButtonBuilder,
+          submenuButtonBuilder: submenuButtonBuilder,
           focusHaloBuilder: focusHaloBuilder,
           menuBuilderForAction: menuBuilderForAction,
           overflowButtonBuilder: overflowButtonBuilder,
@@ -400,6 +404,37 @@ void main() {
 
     expect(constraints!.hasTightWidth, isTrue);
     expect(constraints!.maxWidth, 200);
+  });
+
+  testWidgets('icon-only builder follows the resolved target presentation', (
+    tester,
+  ) async {
+    final wrapped = <ActionId>[];
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(
+          roots: [
+            action('save', iconKey: 'save'),
+            action('open', iconKey: 'open'),
+          ],
+        ),
+        onInvoke: (_) {},
+        width: 300,
+        actionIconBuilder: iconBuilder,
+        presentationForAction: (context, action) =>
+            action.id == ActionId('save')
+            ? CupertinoActionPresentation.iconOnly
+            : CupertinoActionPresentation.extended,
+        iconOnlyButtonBuilder: (context, action, onPressed, defaultBuilder) {
+          wrapped.add(action.id);
+          return defaultBuilder(context, action, onPressed);
+        },
+      ),
+    );
+
+    expect(wrapped, [ActionId('save')]);
+    expect(find.text('open'), findsOneWidget);
+    expect(find.text('save'), findsNothing);
   });
 
   testWidgets('customizes the overflow trigger without replacing its menu', (
@@ -1452,6 +1487,45 @@ void main() {
     await tester.tap(find.text('Custom open'));
     await tester.pumpAndSettle();
     expect(invoked, ['open-command', 'custom-command']);
+  });
+
+  testWidgets('custom submenu builder can wrap the package default', (
+    tester,
+  ) async {
+    final child = action('child');
+    final open = AdaptiveAction<String>.composite(
+      id: ActionId('open'),
+      metadata: const ActionMetadata(label: 'Open', iconKey: 'open'),
+      payload: 'open-command',
+      children: [child],
+    );
+
+    await tester.pumpWidget(
+      pumpTarget(
+        actions: ActionCollection(roots: [open]),
+        onInvoke: (_) {},
+        actionIconBuilder: iconBuilder,
+        submenuButtonBuilder: (context, action, onPressed, defaultBuilder) =>
+            CupertinoTheme(
+              data: CupertinoTheme.of(
+                context,
+              ).copyWith(primaryColor: CupertinoColors.systemGreen),
+              child: Builder(
+                builder: (context) =>
+                    defaultBuilder(context, action, onPressed),
+              ),
+            ),
+      ),
+    );
+
+    final chevron = find.byIcon(CupertinoIcons.chevron_down);
+    expect(
+      IconTheme.of(tester.element(chevron)).color,
+      CupertinoColors.systemGreen,
+    );
+    await tester.tap(chevron);
+    await tester.pumpAndSettle();
+    expect(find.text('child'), findsOneWidget);
   });
 
   testWidgets('animates the label while an icon option contracts', (
