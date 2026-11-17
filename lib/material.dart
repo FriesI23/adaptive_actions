@@ -3,6 +3,8 @@
 /// This entrypoint re-exports the platform-neutral core contract and adds
 /// [MaterialAdaptiveActions], a width-aware primary and overflow action region.
 /// It also exposes the shared action-region layout contract.
+/// Import `package:material_ui/material_ui.dart` for the host app, themes, and
+/// custom UI builders; this entrypoint does not re-export that library.
 library;
 
 export 'core.dart';

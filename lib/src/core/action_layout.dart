@@ -52,8 +52,8 @@ final class ActionLayoutRequest<T extends Object> {
     required this.capabilities,
     required this.primaryOrderOverride,
     required this.overflowOrderOverride,
-    required NormalizedActionPlacementInput<T> normalizedPlacementInput,
-  }) : _normalizedPlacementInput = normalizedPlacementInput;
+    required this._normalizedPlacementInput,
+  });
 
   /// The validated action tree and its placement constraints.
   final ActionCollection<T> actions;

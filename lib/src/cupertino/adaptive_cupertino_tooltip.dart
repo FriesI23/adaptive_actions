@@ -1,12 +1,15 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// Builds a Cupertino tooltip wrapper for [child].
 ///
 /// The adaptive-actions renderer resolves tooltip visibility and text before
 /// calling this builder. Implementations should avoid adding duplicate tooltip
 /// semantics when the wrapped control already owns them.
-typedef AdaptiveCupertinoTooltipBuilder =
-    Widget Function(BuildContext context, String message, Widget child);
+typedef AdaptiveCupertinoTooltipBuilder = Widget Function(
+  BuildContext context,
+  String message,
+  Widget child,
+);
 
 /// A Cupertino-styled tooltip backed by Flutter's [RawTooltip] interaction.
 ///

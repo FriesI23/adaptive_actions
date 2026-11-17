@@ -3,8 +3,7 @@ import 'dart:math' as math;
 
 import 'package:adaptive_actions/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'cupertino_demo.dart';
 import 'demo_dialogs.dart';
@@ -225,9 +224,8 @@ final class _AdaptiveActionsDemoPageState
       locale: Locale(_actionLanguage.languageCode),
       delegates: GlobalMaterialLocalizations.delegates,
       child: MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(_textScale)),
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(_textScale)),
         child: Directionality(
           textDirection: _rightToLeft ? TextDirection.rtl : TextDirection.ltr,
           child: page,
@@ -1005,9 +1003,8 @@ Widget _materialActionButtonBuilder(
     child: IconButton(
       tooltip: action.metadata.tooltip ?? action.metadata.label,
       color: Theme.of(context).colorScheme.error,
-      iconSize: MediaQuery.textScalerOf(
-        context,
-      ).scale(const MaterialAdaptiveActionsStyle().iconSize),
+      iconSize: MediaQuery.textScalerOf(context)
+          .scale(const MaterialAdaptiveActionsStyle().iconSize),
       onPressed: onPressed,
       icon: const Icon(Icons.delete_forever_outlined),
     ),

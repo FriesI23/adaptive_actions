@@ -1,6 +1,8 @@
 import 'package:adaptive_actions/material.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../support/material_tooltip_finder.dart';
 
 void main() {
   testWidgets('material entrypoint exposes core and renderer APIs', (
@@ -12,12 +14,24 @@ void main() {
       payload: 'save-command',
     );
     final invoked = <String>[];
+    final theme = ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+    );
     Widget actionButtonBuilder(
       BuildContext context,
       AdaptiveAction<String> action,
       VoidCallback? onPressed,
       MaterialActionButtonDefaultBuilder<String> defaultBuilder,
-    ) => defaultBuilder(context, action, onPressed);
+    ) {
+      expect(Theme.of(context).colorScheme.primary, theme.colorScheme.primary);
+      expect(Localizations.localeOf(context), const Locale('zh'));
+      expect(
+        MaterialLocalizations.of(context),
+        isA<GlobalMaterialLocalizations>(),
+      );
+      return defaultBuilder(context, action, onPressed);
+    }
+
     Widget overflowButtonBuilder(
       BuildContext context,
       VoidCallback onPressed,
@@ -32,6 +46,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: theme,
+        locale: const Locale('zh'),
+        supportedLocales: const [Locale('en'), Locale('zh')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: Scaffold(
           body: MaterialAdaptiveActions<String>.moreAction(
             actions: ActionCollection(roots: [save]),
@@ -47,6 +65,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Save'));
 
@@ -82,7 +101,7 @@ void main() {
     );
 
     expect(find.text('Save'), findsNothing);
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();

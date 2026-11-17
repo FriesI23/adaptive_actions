@@ -1,5 +1,5 @@
 import 'package:adaptive_actions/cupertino.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -12,12 +12,25 @@ void main() {
       payload: 'save-command',
     );
     final invoked = <String>[];
+    const primaryColor = CupertinoColors.systemTeal;
     Widget actionButtonBuilder(
       BuildContext context,
       AdaptiveAction<String> action,
       VoidCallback? onPressed,
       CupertinoActionButtonDefaultBuilder<String> defaultBuilder,
-    ) => defaultBuilder(context, action, onPressed);
+    ) {
+      expect(
+        CupertinoTheme.of(context).primaryColor,
+        CupertinoDynamicColor.resolve(primaryColor, context),
+      );
+      expect(Localizations.localeOf(context), const Locale('zh'));
+      expect(
+        CupertinoLocalizations.of(context),
+        isA<GlobalCupertinoLocalizations>(),
+      );
+      return defaultBuilder(context, action, onPressed);
+    }
+
     Widget overflowButtonBuilder(
       BuildContext context,
       VoidCallback onPressed,
@@ -36,6 +49,10 @@ void main() {
 
     await tester.pumpWidget(
       CupertinoApp(
+        theme: const CupertinoThemeData(primaryColor: primaryColor),
+        locale: const Locale('zh'),
+        supportedLocales: const [Locale('en'), Locale('zh')],
+        localizationsDelegates: GlobalCupertinoLocalizations.delegates,
         home: CupertinoPageScaffold(
           child: CupertinoAdaptiveActions<String>.moreAction(
             actions: ActionCollection(roots: [save]),
@@ -51,6 +68,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Save'));
 

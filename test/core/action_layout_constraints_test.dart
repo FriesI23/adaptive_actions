@@ -155,9 +155,8 @@ void main() {
     test('only describes renderer interaction capabilities', () {
       expect(const RendererCapabilities(), const RendererCapabilities());
       expect(
-        const RendererCapabilities(
-          supportsCompositeActions: true,
-        ).supportsCompositeActions,
+        const RendererCapabilities(supportsCompositeActions: true)
+            .supportsCompositeActions,
         isTrue,
       );
     });

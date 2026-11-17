@@ -1,11 +1,13 @@
 import 'package:adaptive_actions/material.dart';
-import 'package:flutter/cupertino.dart' as cupertino;
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' as cupertino;
+import 'package:material_ui/material_ui.dart';
 
 import 'demo_layout_reporter.dart';
 
-typedef DemoActionIconBuilder<T extends Object> =
-    Widget? Function(BuildContext context, AdaptiveAction<T> action);
+typedef DemoActionIconBuilder<T extends Object> = Widget? Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+);
 
 bool isDesktopTarget(TargetPlatform platform) => switch (platform) {
   TargetPlatform.linux ||
@@ -58,9 +60,9 @@ final class DemoSection extends StatelessWidget {
           Text(
             title,
             style: useCupertino
-                ? cupertino.CupertinoTheme.of(
-                    context,
-                  ).textTheme.navTitleTextStyle
+                ? cupertino.CupertinoTheme.of(context)
+                      .textTheme
+                      .navTitleTextStyle
                 : Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),

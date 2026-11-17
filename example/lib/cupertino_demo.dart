@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:adaptive_actions/cupertino.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'demo_settings.dart';
 
@@ -302,9 +302,8 @@ Widget _cupertinoActionButtonBuilder<T extends Object>(
       onPressed: onPressed,
       child: Icon(
         CupertinoIcons.delete_solid,
-        size: MediaQuery.textScalerOf(
-          context,
-        ).scale(const CupertinoAdaptiveActionsStyle().iconSize),
+        size: MediaQuery.textScalerOf(context)
+            .scale(const CupertinoAdaptiveActionsStyle().iconSize),
         color: CupertinoColors.systemRed.resolveFrom(context),
       ),
     ),

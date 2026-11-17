@@ -21,12 +21,10 @@ final class ActionTooltipPolicy {
   /// With no overrides, this uses the package default of allowing only
   /// [ActionTooltipSurface.primaryIconOnly].
   const ActionTooltipPolicy.allowed({
-    bool primaryIconOnly = true,
-    bool primaryLabeled = false,
-    bool menuItem = false,
-  }) : _primaryIconOnly = primaryIconOnly,
-       _primaryLabeled = primaryLabeled,
-       _menuItem = menuItem;
+    this._primaryIconOnly = true,
+    this._primaryLabeled = false,
+    this._menuItem = false,
+  });
 
   /// Allows tooltips on every rendered surface except the selected ones.
   ///

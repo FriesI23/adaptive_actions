@@ -1,5 +1,5 @@
-import 'package:flutter/cupertino.dart' as cupertino;
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' as cupertino;
+import 'package:material_ui/material_ui.dart';
 
 const openDocumentDialogKey = ValueKey('open-document-dialog');
 const projectProposalDialogOptionKey = ValueKey(

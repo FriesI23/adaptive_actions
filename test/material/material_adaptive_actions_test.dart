@@ -1,8 +1,10 @@
 import 'package:adaptive_actions/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../support/material_tooltip_finder.dart';
 
 void main() {
   test('MaterialAdaptiveActionsStyle copyWith replaces selected metrics', () {
@@ -578,7 +580,7 @@ void main() {
       );
 
       expect(find.byIcon(Icons.save), findsNothing);
-      expect(find.byTooltip('More actions'), findsOneWidget);
+      expect(findMaterialTooltip('More actions'), findsOneWidget);
     },
   );
 
@@ -735,7 +737,7 @@ void main() {
     final moreOpacity = tester.widget<Opacity>(
       find
           .ancestor(
-            of: find.byTooltip('More actions'),
+            of: findMaterialTooltip('More actions'),
             matching: find.byType(Opacity),
           )
           .first,
@@ -750,7 +752,7 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.save), findsNothing);
-    expect(find.byTooltip('More actions'), findsOneWidget);
+    expect(findMaterialTooltip('More actions'), findsOneWidget);
 
     await tester.pumpWidget(target(1));
     await tester.pump(const Duration(milliseconds: 200));
@@ -762,7 +764,7 @@ void main() {
     final outgoingMoreOpacity = tester.widget<Opacity>(
       find
           .ancestor(
-            of: find.byTooltip('More actions'),
+            of: findMaterialTooltip('More actions'),
             matching: find.byType(Opacity),
           )
           .first,
@@ -774,7 +776,7 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.save), findsOneWidget);
-    expect(find.byTooltip('More actions'), findsNothing);
+    expect(findMaterialTooltip('More actions'), findsNothing);
   });
 
   testWidgets('animation durations independently control option transitions', (
@@ -898,7 +900,7 @@ void main() {
     final moreOpacity = tester.widget<Opacity>(
       find
           .ancestor(
-            of: find.byTooltip('More actions'),
+            of: findMaterialTooltip('More actions'),
             matching: find.byType(Opacity),
           )
           .first,
@@ -911,7 +913,7 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.save), findsNothing);
-    expect(find.byTooltip('More actions'), findsOneWidget);
+    expect(findMaterialTooltip('More actions'), findsOneWidget);
   });
 
   testWidgets('animates only the last collapse across multiple actions', (
@@ -970,7 +972,7 @@ void main() {
     );
     expect(
       find.ancestor(
-        of: find.byTooltip('More actions'),
+        of: findMaterialTooltip('More actions'),
         matching: find.byType(Opacity),
       ),
       findsNothing,
@@ -983,7 +985,7 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('C'), findsNothing);
-    expect(find.byTooltip('More actions'), findsOneWidget);
+    expect(findMaterialTooltip('More actions'), findsOneWidget);
   });
 
   testWidgets('animates only the last expansion across multiple actions', (
@@ -1014,7 +1016,7 @@ void main() {
     await tester.pumpWidget(target(4));
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.byTooltip('More actions'), findsNothing);
+    expect(findMaterialTooltip('More actions'), findsNothing);
     expect(find.text('C'), findsOneWidget);
     expect(find.text('D'), findsOneWidget);
     expect(
@@ -1370,10 +1372,10 @@ void main() {
         ),
       );
 
-      expect(find.byTooltip('Save changes'), findsOneWidget);
+      expect(findMaterialTooltip('Save changes'), findsOneWidget);
       expect(find.bySemanticsLabel('Save document'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Save changes'));
+      await tester.tap(findMaterialTooltip('Save changes'));
 
       expect(invoked, isEmpty);
     },
@@ -1486,10 +1488,10 @@ void main() {
         width: 48,
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Move to archive'), findsOneWidget);
+    expect(findMaterialTooltip('Move to archive'), findsOneWidget);
   });
 
   testWidgets('renders Material menu subtitles without changing primary', (
@@ -1514,7 +1516,7 @@ void main() {
     );
 
     expect(find.text('Current document'), findsNothing);
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
 
     expect(find.text('save'), findsOneWidget);
@@ -1572,7 +1574,7 @@ void main() {
         width: 48,
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel('Unavailable command'), findsOneWidget);
@@ -1619,7 +1621,7 @@ void main() {
         width: 48,
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
 
     expect(find.text('Choose an arrangement'), findsOneWidget);
@@ -1656,7 +1658,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
 
     expect(find.text(details.metadata.subtitle!), findsOneWidget);
@@ -1746,7 +1748,7 @@ void main() {
             ),
           ),
         );
-        await tester.tap(find.byTooltip('More actions'));
+        await tester.tap(findMaterialTooltip('More actions'));
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(MenuItemButton, 'replace'));
         expect(invoked, isEmpty);
@@ -1787,7 +1789,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Outer'));
     await tester.pumpAndSettle();
@@ -1913,7 +1915,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(SubmenuButton, 'Filters'), findsOneWidget);
     await tester.tap(find.text('Filters'));
@@ -1923,7 +1925,7 @@ void main() {
 
     expect(selected, isTrue);
     expect(find.text('Selected'), findsOneWidget);
-    expect(find.byTooltip('More actions'), findsOneWidget);
+    expect(findMaterialTooltip('More actions'), findsOneWidget);
   });
 
   testWidgets('reports a menu action without declared or custom content', (
@@ -2024,7 +2026,7 @@ void main() {
         maxPrimaryActions: 0,
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     expect(find.byType(PopupMenuDivider), findsOneWidget);
 
@@ -2197,8 +2199,8 @@ void main() {
     );
 
     expect(find.text('save'), findsNothing);
-    expect(find.byTooltip('Commands'), findsOneWidget);
-    expect(tester.getSize(find.byTooltip('Commands')).width, 56);
+    expect(findMaterialTooltip('Commands'), findsOneWidget);
+    expect(tester.getSize(findMaterialTooltip('Commands')).width, 56);
 
     await tester.pumpWidget(
       pumpTarget(
@@ -2209,7 +2211,7 @@ void main() {
     );
 
     expect(find.text('save'), findsOneWidget);
-    expect(find.byTooltip('More actions'), findsNothing);
+    expect(findMaterialTooltip('More actions'), findsNothing);
   });
 
   testWidgets('preserves final overflow sibling order and invokes a leaf', (
@@ -2243,7 +2245,7 @@ void main() {
         overflowOrderOverride: [third.id, first.id],
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
 
     final thirdY = tester.getTopLeft(find.text('third')).dy;
@@ -2287,7 +2289,7 @@ void main() {
     await tester.pumpWidget(
       pumpTarget(actions: collection, onInvoke: invoked.add, width: 48),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('outer'));
     await tester.pumpAndSettle();
@@ -2334,7 +2336,7 @@ void main() {
         width: 48,
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open').first);
     await tester.pumpAndSettle();
@@ -2345,7 +2347,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(invoked, ['open-command']);
 
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open').first);
     await tester.pumpAndSettle();
@@ -2384,10 +2386,10 @@ void main() {
         iconBuilder: iconBuilder,
       ),
     );
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Unavailable command'), findsNothing);
+    expect(findMaterialTooltip('Unavailable command'), findsNothing);
     expect(find.bySemanticsLabel('Disabled command'), findsOneWidget);
     expect(find.byIcon(Icons.folder_open), findsOneWidget);
     await tester.tap(find.text('Disabled'));
@@ -2540,7 +2542,7 @@ void main() {
     await tester.tap(find.text('H'));
     expect(invoked, ['high-command']);
 
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(find.text('O')).dy,
@@ -2663,7 +2665,7 @@ void main() {
     expect(find.text('E'), findsNothing);
     await tester.tap(find.text('C'));
 
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(find.text('D')).dy,
@@ -2719,7 +2721,7 @@ void main() {
 
     await tester.tap(find.text('first'));
     expect(invoked, ['first-command']);
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(findMaterialTooltip('More actions'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('third'));
     await tester.pumpAndSettle();

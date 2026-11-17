@@ -345,39 +345,35 @@ void main() {
       expect(first.hashCode, second.hashCode);
     });
 
-    test(
-      'fromEntries flattens contiguous constrained actions into canonical inputs',
-      () {
-        final save = action('save');
-        final cut = action('cut');
-        final copy = action('copy');
-        final search = action('search');
-        final entryActions = [cut, copy];
-        final constrainedEntry =
-            ActionCollectionEntry<String>.constrainedActions(
-              id: ActionPlacementConstraintId('editing'),
-              actions: entryActions,
-              splitPolicy: ActionPlacementSplitPolicy.indivisible,
-            );
-        entryActions.clear();
-        final collection = ActionCollection<String>.fromEntries([
-          ActionCollectionEntry.action(save),
-          constrainedEntry,
-          ActionCollectionEntry.action(search),
-        ]);
+    test('fromEntries flattens contiguous constrained actions into canonical inputs', () {
+      final save = action('save');
+      final cut = action('cut');
+      final copy = action('copy');
+      final search = action('search');
+      final entryActions = [cut, copy];
+      final constrainedEntry = ActionCollectionEntry<String>.constrainedActions(
+        id: ActionPlacementConstraintId('editing'),
+        actions: entryActions,
+        splitPolicy: ActionPlacementSplitPolicy.indivisible,
+      );
+      entryActions.clear();
+      final collection = ActionCollection<String>.fromEntries([
+        ActionCollectionEntry.action(save),
+        constrainedEntry,
+        ActionCollectionEntry.action(search),
+      ]);
 
-        expect(collection.roots, [save, cut, copy, search]);
-        expect(constrainedEntry.roots, [cut, copy]);
-        expect(collection.placementConstraints.single.actionIds, [
-          cut.id,
-          copy.id,
-        ]);
-        expect(
-          collection.placementConstraints.single.splitPolicy,
-          ActionPlacementSplitPolicy.indivisible,
-        );
-      },
-    );
+      expect(collection.roots, [save, cut, copy, search]);
+      expect(constrainedEntry.roots, [cut, copy]);
+      expect(collection.placementConstraints.single.actionIds, [
+        cut.id,
+        copy.id,
+      ]);
+      expect(
+        collection.placementConstraints.single.splitPolicy,
+        ActionPlacementSplitPolicy.indivisible,
+      );
+    });
 
     test('fromEntries preserves collection validation', () {
       final duplicate = action('duplicate');

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core.dart';
 import '../widgets/action_invocation.dart';
@@ -75,58 +75,64 @@ final class _MaterialActionTooltip extends StatelessWidget {
 ///
 /// The adaptive-actions renderer resolves tooltip visibility and text before
 /// calling this builder. Accessibility semantics remain renderer-owned.
-typedef MaterialTooltipBuilder =
-    Widget Function(BuildContext context, String message, Widget child);
+typedef MaterialTooltipBuilder = Widget Function(
+  BuildContext context,
+  String message,
+  Widget child,
+);
 
 /// Builds the Material icon associated with an adaptive [action].
 ///
 /// Return `null` when the action has no Material icon. The renderer then uses
 /// its label-only primary layout option.
-typedef MaterialActionIconBuilder<T extends Object> =
-    Widget? Function(BuildContext context, AdaptiveAction<T> action);
+typedef MaterialActionIconBuilder<T extends Object> = Widget? Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+);
 
 /// Builds the default Material primary action button.
-typedef MaterialActionButtonDefaultBuilder<T extends Object> =
-    Widget Function(
-      BuildContext context,
-      AdaptiveAction<T> action,
-      VoidCallback? onPressed,
-    );
+typedef MaterialActionButtonDefaultBuilder<T extends Object> = Widget Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+  VoidCallback? onPressed,
+);
 
 /// Overrides a Material primary action button.
 ///
 /// Call [defaultBuilder] with the supplied arguments to retain the platform
 /// implementation, or replace them to customize this render only. Replacing
 /// [action] does not rerun layout resolution or change the allocated slot.
-typedef MaterialActionButtonBuilder<T extends Object> =
-    Widget Function(
-      BuildContext context,
-      AdaptiveAction<T> action,
-      VoidCallback? onPressed,
-      MaterialActionButtonDefaultBuilder<T> defaultBuilder,
-    );
+typedef MaterialActionButtonBuilder<T extends Object> = Widget Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+  VoidCallback? onPressed,
+  MaterialActionButtonDefaultBuilder<T> defaultBuilder,
+);
 
 /// Builds the complete Material menu content for one adaptive [action].
 ///
 /// Return `null` to use the renderer's default recursive rendering of
 /// [AdaptiveAction.children]. A non-null result replaces that complete menu
 /// subtree and must not be empty.
-typedef MaterialActionMenuBuilder<T extends Object> =
-    List<Widget>? Function(BuildContext context, AdaptiveAction<T> action);
+typedef MaterialActionMenuBuilder<T extends Object> = List<Widget>? Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+);
 
 /// Builds the default Material overflow-menu trigger.
-typedef MaterialOverflowButtonDefaultBuilder =
-    Widget Function(BuildContext context, VoidCallback onPressed);
+typedef MaterialOverflowButtonDefaultBuilder = Widget Function(
+  BuildContext context,
+  VoidCallback onPressed,
+);
 
 /// Overrides the Material overflow-menu trigger.
 ///
 /// The renderer continues to own the menu and supplies its toggle callback.
-typedef MaterialOverflowButtonBuilder =
-    Widget Function(
-      BuildContext context,
-      VoidCallback onPressed,
-      MaterialOverflowButtonDefaultBuilder defaultBuilder,
-    );
+typedef MaterialOverflowButtonBuilder = Widget Function(
+  BuildContext context,
+  VoidCallback onPressed,
+  MaterialOverflowButtonDefaultBuilder defaultBuilder,
+);
 
 /// A forced primary-button presentation for [MaterialAdaptiveActions].
 ///
@@ -499,7 +505,7 @@ final class MaterialAdaptiveActions<T extends Object> extends StatelessWidget {
 
   /// Overrides the visual tooltip wrapper used by this renderer.
   ///
-  /// When null, Flutter's Material [Tooltip] is used. Visibility, resolved
+  /// When null, `material_ui`'s [Tooltip] is used. Visibility, resolved
   /// action text, and accessibility semantics remain renderer-owned.
   final MaterialTooltipBuilder? tooltipBuilder;
 
@@ -1434,9 +1440,8 @@ final class _MaterialMenuLabel<T extends Object> extends StatelessWidget {
       children: [
         Text(action.metadata.label),
         DefaultTextStyle.merge(
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: subtitleColor),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: subtitleColor),
           child: Text(subtitle),
         ),
       ],

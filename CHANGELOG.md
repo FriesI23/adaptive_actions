@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** Require Flutter 3.47 / Dart 3.13 and the standalone
+  `material_ui` / `cupertino_ui` packages.
+- **Required migration:**
+  - Switch host UI imports and themes to the corresponding standalone packages.
+  - Use localization delegates from the standalone packages.
+  - Update custom button, menu, and tooltip builders to use the same UI packages.
+
 ## 0.7.1
 
 - Added Cupertino icon-only action and submenu button builder overrides so apps

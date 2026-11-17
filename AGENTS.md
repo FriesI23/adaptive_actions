@@ -13,7 +13,9 @@
 - `make aio`: apply Dart fixes and formatting, then analyze and test everything.
 - `make publish-dry-run`: validate pub.dev packaging before release work.
 
-FVM is used when available; CI currently runs Flutter 3.44.9.
+FVM is used when available; CI currently runs Flutter 3.47.9. Renderers use
+`material_ui` and `cupertino_ui`; keep SDK Material/Cupertino imports out of
+package and example code.
 
 ## Coding Style & Naming Conventions
 
