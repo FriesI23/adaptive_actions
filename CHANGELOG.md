@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- Add README recommendations for other projects.
+
 ## 0.8.0
 
 - **Breaking:** Require Flutter 3.47 / Dart 3.13 and the standalone
