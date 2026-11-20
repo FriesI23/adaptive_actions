@@ -34,9 +34,8 @@ final class DefaultActionPlacementDelegate implements ActionPlacementDelegate {
     ActionLayoutRequest<T> request,
   ) {
     final units = _LayoutUnitBuilder(request.normalizedPlacementInput).build();
-    final placement = _ActionPlacementAllocator<T>(
-      request.constraints,
-    ).allocate(units);
+    final placement = _ActionPlacementAllocator<T>(request.constraints)
+        .allocate(units);
     final selectedPrimary = _selectPrimaryOptions(
       placement: placement,
       constraints: request.constraints,

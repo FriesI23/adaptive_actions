@@ -43,6 +43,13 @@ Cupertino UI.
 | -------------------------------------------------- | --------------------------------------------------- |
 | ![Custom action and More buttons][custom-buttons]  | ![Apple nested menu following RTL][rtl-nested-menu] |
 
+## Standalone UI packages
+
+Requires Flutter 3.47 / Dart 3.13 or later. Material and Cupertino renderers
+use `material_ui` and `cupertino_ui`; host UI must use the corresponding
+standalone package. This is a breaking migration following
+[Flutter's guidance for package authors](https://docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui#guidance-for-package-authors).
+
 ## Getting started
 
 Add the package:
@@ -56,7 +63,7 @@ enum is often enough for a small feature:
 
 ```dart
 import 'package:adaptive_actions/material.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 enum DocumentCommand { save, share, delete }
 
@@ -120,7 +127,7 @@ Use the same `documentActions` and command handler with the Cupertino widget:
 
 ```dart
 import 'package:adaptive_actions/cupertino.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 CupertinoAdaptiveActions<DocumentCommand>.moreAction(
   actions: documentActions,
@@ -144,7 +151,7 @@ icon-only primary controls and use `tooltip ?? label`. Configure surfaces per
 action with `ActionTooltipPolicy.allowed(...)` or `denied(...)`; their empty
 forms are equivalent, while `always()` and `never()` are shortcuts.
 
-Cupertino uses `AdaptiveCupertinoTooltip`; Material uses Flutter's `Tooltip`.
+Cupertino uses `AdaptiveCupertinoTooltip`; Material uses `material_ui`'s `Tooltip`.
 Set the renderer's `tooltipBuilder` to replace that visual wrapper once for all
 of its actions. Tooltip policy remains separate from accessibility semantics.
 The generic constructors require an explicit `overflowIcon` and keep

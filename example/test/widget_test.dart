@@ -4,7 +4,7 @@ import 'package:adaptive_actions_example/demo_dialogs.dart';
 import 'package:adaptive_actions_example/demo_settings.dart';
 import 'package:adaptive_actions_example/demo_widgets.dart';
 import 'package:adaptive_actions_example/main.dart';
-import 'package:flutter/cupertino.dart'
+import 'package:cupertino_ui/cupertino_ui.dart'
     show
         CupertinoApp,
         CupertinoColors,
@@ -16,8 +16,8 @@ import 'package:flutter/cupertino.dart'
         CupertinoTheme;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   Future<void> invokeDemoControl(
@@ -1176,9 +1176,9 @@ void main() {
     );
     expect(appleWidthSlider.value, appleWidthSlider.max);
     expect(
-      DefaultTextStyle.of(
-        tester.element(find.text('Window width: 800 px')),
-      ).style.fontSize,
+      DefaultTextStyle.of(tester.element(find.text('Window width: 800 px')))
+          .style
+          .fontSize,
       17,
     );
 

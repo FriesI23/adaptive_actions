@@ -183,34 +183,31 @@ void main() {
       },
     );
 
-    test(
-      'accepts explicit retention priority for indivisible automatic constraints',
-      () {
-        final first = action('first');
-        final second = action('second');
-        expect(
-          () => ActionLayoutRequest(
-            actions: ActionCollection(
-              roots: [first, second],
-              placementConstraints: [
-                ActionPlacementConstraints(
-                  id: ActionPlacementConstraintId('automatic'),
-                  actionIds: [first.id, second.id],
-                  splitPolicy: ActionPlacementSplitPolicy.indivisible,
-                  retentionPriority: PrimaryRetentionPriority.high,
-                ),
-              ],
-            ),
-            constraints: ActionLayoutConstraints(
-              primaryCapacity: 100,
-              profiles: [costs('first'), costs('second')],
-            ),
-            capabilities: capabilities,
+    test('accepts explicit retention priority for indivisible automatic constraints', () {
+      final first = action('first');
+      final second = action('second');
+      expect(
+        () => ActionLayoutRequest(
+          actions: ActionCollection(
+            roots: [first, second],
+            placementConstraints: [
+              ActionPlacementConstraints(
+                id: ActionPlacementConstraintId('automatic'),
+                actionIds: [first.id, second.id],
+                splitPolicy: ActionPlacementSplitPolicy.indivisible,
+                retentionPriority: PrimaryRetentionPriority.high,
+              ),
+            ],
           ),
-          returnsNormally,
-        );
-      },
-    );
+          constraints: ActionLayoutConstraints(
+            primaryCapacity: 100,
+            profiles: [costs('first'), costs('second')],
+          ),
+          capabilities: capabilities,
+        ),
+        returnsNormally,
+      );
+    });
 
     test('rejects layout profiles for unknown and non-root actions', () {
       final child = action('child');

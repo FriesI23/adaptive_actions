@@ -15,11 +15,11 @@ void main() {
   test('keeps renderer integrations and settings in their intended files', () {
     final mainSource = File('lib/main.dart').readAsStringSync();
     final cupertinoSource = File('lib/cupertino_demo.dart').readAsStringSync();
-    final settingsSource = File(
-      'lib/demo_settings_widgets.dart',
-    ).readAsStringSync();
+    final settingsSource = File('lib/demo_settings_widgets.dart')
+        .readAsStringSync();
 
     expect(mainSource, contains('package:adaptive_actions/material.dart'));
+    expect(mainSource, contains('package:material_ui/material_ui.dart'));
     expect(mainSource, contains('MaterialAdaptiveActions<DemoCommand>'));
     expect(mainSource, contains('presentationForAction:'));
     expect(mainSource, contains('distribution:'));
@@ -28,13 +28,17 @@ void main() {
       mainSource,
       isNot(contains('package:adaptive_actions/cupertino.dart')),
     );
-    expect(mainSource, isNot(contains('package:flutter/cupertino.dart')));
+    expect(
+      mainSource,
+      isNot(contains('package:cupertino_ui/cupertino_ui.dart')),
+    );
     expect(mainSource, isNot(contains('CupertinoAdaptiveActions')));
 
     expect(
       cupertinoSource,
       contains('package:adaptive_actions/cupertino.dart'),
     );
+    expect(cupertinoSource, contains('package:cupertino_ui/cupertino_ui.dart'));
     expect(cupertinoSource, contains('CupertinoAdaptiveActions<T>'));
     expect(cupertinoSource, contains('presentationForAction:'));
     expect(cupertinoSource, contains('distribution:'));

@@ -4,6 +4,27 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('architecture boundaries', () {
+    test('package and example use only standalone design libraries', () {
+      final forbiddenDirectives = <String>[];
+      for (final directory in ['lib', 'test', 'example/lib', 'example/test']) {
+        final files = Directory(directory)
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.dart'));
+        for (final file in files) {
+          for (final line in file.readAsLinesSync()) {
+            final directive = line.trim();
+            if ((directive.startsWith('import ') ||
+                    directive.startsWith('export ')) &&
+                _legacyDesignLibraries.any(directive.contains)) {
+              forbiddenDirectives.add('${file.path}: $directive');
+            }
+          }
+        }
+      }
+      expect(forbiddenDirectives, isEmpty);
+    });
+
     test('public barrels export only the supported core surface', () {
       expect(_exportsOf('lib/adaptive_actions.dart'), [
         "export 'core.dart';",
@@ -147,11 +168,12 @@ void main() {
   });
 }
 
-List<String> _exportsOf(String path) => File(path)
-    .readAsLinesSync()
-    .map((line) => line.trim())
-    .where((line) => line.startsWith('export '))
-    .toList(growable: false);
+List<String> _exportsOf(String path) =>
+    File(path)
+        .readAsLinesSync()
+        .map((line) => line.trim())
+        .where((line) => line.startsWith('export '))
+        .toList(growable: false);
 
 const _supportedCoreExports = [
   "export 'src/core/action_collection.dart';",
@@ -171,12 +193,15 @@ const _supportedCoreExports = [
 const _forbiddenImportPrefixes = [
   "import 'dart:ui'",
   "import 'package:flutter/",
+  "import 'package:material_ui/",
+  "import 'package:cupertino_ui/",
   "import 'package:adaptive_actions/adaptive_actions_material.dart'",
   "import 'package:adaptive_actions/adaptive_actions_cupertino.dart'",
 ];
 
 const _forbiddenCupertinoDependencies = [
   'package:flutter/material.dart',
+  'package:material_ui/',
   '/material.dart',
   '/src/material/',
   '../material/',
@@ -185,10 +210,20 @@ const _forbiddenCupertinoDependencies = [
 const _forbiddenSharedWidgetDependencies = [
   'package:flutter/material.dart',
   'package:flutter/cupertino.dart',
+  'package:material_ui/',
+  'package:cupertino_ui/',
   '/src/material/',
   '/src/cupertino/',
   '../material/',
   '../cupertino/',
+];
+
+const _legacyDesignLibraries = [
+  'package:flutter/material.dart',
+  'package:flutter/cupertino.dart',
+  'package:flutter/src/material/',
+  'package:flutter/src/cupertino/',
+  'package:flutter_localizations/',
 ];
 
 const _supersededPublicTerms = [

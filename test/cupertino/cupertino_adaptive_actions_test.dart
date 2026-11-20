@@ -1,5 +1,5 @@
 import 'package:adaptive_actions/cupertino.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1507,9 +1507,8 @@ void main() {
         actionIconBuilder: iconBuilder,
         submenuButtonBuilder: (context, action, onPressed, defaultBuilder) =>
             CupertinoTheme(
-              data: CupertinoTheme.of(
-                context,
-              ).copyWith(primaryColor: CupertinoColors.systemGreen),
+              data: CupertinoTheme.of(context)
+                  .copyWith(primaryColor: CupertinoColors.systemGreen),
               child: Builder(
                 builder: (context) =>
                     defaultBuilder(context, action, onPressed),
@@ -1980,15 +1979,13 @@ void main() {
         );
 
         expect(
-          IconTheme.of(
-            tester.element(find.byIcon(CupertinoIcons.floppy_disk)),
-          ).color,
+          IconTheme.of(tester.element(find.byIcon(CupertinoIcons.floppy_disk)))
+              .color,
           testPrimaryColor,
         );
         expect(
-          IconTheme.of(
-            tester.element(find.byIcon(CupertinoIcons.ellipsis)),
-          ).color,
+          IconTheme.of(tester.element(find.byIcon(CupertinoIcons.ellipsis)))
+              .color,
           testPrimaryColor,
         );
 
@@ -2004,9 +2001,8 @@ void main() {
 
         expect(find.text('save'), findsNothing);
         expect(
-          IconTheme.of(
-            tester.element(find.byIcon(CupertinoIcons.floppy_disk)),
-          ).color,
+          IconTheme.of(tester.element(find.byIcon(CupertinoIcons.floppy_disk)))
+              .color,
           testPrimaryColor,
         );
         await tester.tap(find.byIcon(CupertinoIcons.ellipsis));

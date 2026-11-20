@@ -37,6 +37,13 @@
 | --------------------------------------------------- | --------------------------------------------- |
 | ![自定义操作按钮和更多菜单入口][custom-buttons]     | ![Apple 多级菜单跟随 RTL 方向][rtl-nested-menu] |
 
+## 独立 UI 包
+
+要求 Flutter 3.47 / Dart 3.13 或更新版本。Material 与 Cupertino renderer 分别使用
+`material_ui` 和 `cupertino_ui`，宿主 UI 也须使用对应独立包。此次迁移按照
+[Flutter 官方针对 package 作者的建议](https://docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui#guidance-for-package-authors)
+作为破坏性变更发布。
+
 ## 开始使用
 
 添加依赖：
@@ -50,7 +57,7 @@ enum 就够：
 
 ```dart
 import 'package:adaptive_actions/material.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 enum DocumentCommand { save, share, delete }
 
@@ -113,7 +120,7 @@ MaterialAdaptiveActions<DocumentCommand>.moreAction(
 
 ```dart
 import 'package:adaptive_actions/cupertino.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 CupertinoAdaptiveActions<DocumentCommand>.moreAction(
   actions: documentActions,
@@ -136,7 +143,7 @@ subtitle 只显示在菜单中。可视 tooltip 默认用于纯图标 primary �
 `tooltip ?? label`。每个 action 可通过 `ActionTooltipPolicy.allowed(...)` 或
 `denied(...)` 配置 surface；两者的无参数形式等价，`always()` 和 `never()` 为快捷方式。
 
-Cupertino 默认使用 `AdaptiveCupertinoTooltip`，Material 默认使用 Flutter
+Cupertino 默认使用 `AdaptiveCupertinoTooltip`，Material 默认使用 `material_ui` 的
 `Tooltip`。通过 renderer 的 `tooltipBuilder` 可一次替换其所有 action 的可视包装；
 tooltip policy 不影响辅助功能语义。
 通用构造器要求显式传入 `overflowIcon`，并保持 `overflowTooltip` 为空；

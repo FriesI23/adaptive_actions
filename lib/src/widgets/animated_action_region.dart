@@ -5,14 +5,13 @@ import 'action_region_slot.dart';
 
 /// Builds a renderer-specific transition between variants of the same item.
 @internal
-typedef AnimatedActionRegionVariantBuilder<T extends Object> =
-    Widget Function(
-      BuildContext context,
-      ActionRegionSlot<T> from,
-      ActionRegionSlot<T> to,
-      Animation<double> fadeProgress,
-      Animation<double> resizeProgress,
-    );
+typedef AnimatedActionRegionVariantBuilder<T extends Object> = Widget Function(
+  BuildContext context,
+  ActionRegionSlot<T> from,
+  ActionRegionSlot<T> to,
+  Animation<double> fadeProgress,
+  Animation<double> resizeProgress,
+);
 
 /// Animates one changing boundary while keeping stable action items untouched.
 ///

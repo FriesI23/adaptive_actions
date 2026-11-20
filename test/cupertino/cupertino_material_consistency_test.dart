@@ -1,8 +1,10 @@
 import 'package:adaptive_actions/cupertino.dart' as adaptive_cupertino;
 import 'package:adaptive_actions/material.dart' as adaptive_material;
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' as material;
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart' as material;
+
+import '../support/material_tooltip_finder.dart';
 
 void main() {
   testWidgets(
@@ -93,7 +95,7 @@ void main() {
       expect(find.text('L'), findsNothing);
       expect(find.text('O'), findsNothing);
       expect(find.text('X'), findsNothing);
-      await tester.tap(find.byTooltip('More actions'));
+      await tester.tap(findMaterialTooltip('More actions'));
       await tester.pumpAndSettle();
       expect(
         tester.getTopLeft(find.text('O')).dy,

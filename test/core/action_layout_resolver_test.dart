@@ -367,9 +367,8 @@ void main() {
       );
       final placementDelegate = _RecordingPlacementDelegate();
 
-      final layout = ActionLayoutResolver(
-        placementDelegate: placementDelegate,
-      ).resolve(resolutionRequest);
+      final layout = ActionLayoutResolver(placementDelegate: placementDelegate)
+          .resolve(resolutionRequest);
       final placement =
           placementDelegate.lastPlacement! as ActionPlacementResult<String>;
 

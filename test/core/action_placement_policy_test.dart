@@ -22,9 +22,8 @@ void main() {
         greaterThan(0),
       );
       expect(
-        const PrimaryRetentionPriority.custom(
-          50,
-        ).compareTo(const PrimaryRetentionPriority.custom(50)),
+        const PrimaryRetentionPriority.custom(50)
+            .compareTo(const PrimaryRetentionPriority.custom(50)),
         0,
       );
     });

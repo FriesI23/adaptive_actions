@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'dart:math' as math;
 
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
@@ -95,29 +95,29 @@ final class _CupertinoActionTooltip extends StatelessWidget {
 ///   _ => null,
 /// };
 /// ```
-typedef CupertinoActionIconBuilder<T extends Object> =
-    Widget? Function(BuildContext context, AdaptiveAction<T> action);
+typedef CupertinoActionIconBuilder<T extends Object> = Widget? Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+);
 
 /// Builds the default Cupertino primary action button.
-typedef CupertinoActionButtonDefaultBuilder<T extends Object> =
-    Widget Function(
-      BuildContext context,
-      AdaptiveAction<T> action,
-      VoidCallback? onPressed,
-    );
+typedef CupertinoActionButtonDefaultBuilder<T extends Object> = Widget Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+  VoidCallback? onPressed,
+);
 
 /// Overrides a Cupertino primary action button.
 ///
 /// Call [defaultBuilder] with the supplied arguments to retain the platform
 /// implementation, or replace them to customize this render only. Replacing
 /// [action] does not rerun layout resolution or change the allocated slot.
-typedef CupertinoActionButtonBuilder<T extends Object> =
-    Widget Function(
-      BuildContext context,
-      AdaptiveAction<T> action,
-      VoidCallback? onPressed,
-      CupertinoActionButtonDefaultBuilder<T> defaultBuilder,
-    );
+typedef CupertinoActionButtonBuilder<T extends Object> = Widget Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+  VoidCallback? onPressed,
+  CupertinoActionButtonDefaultBuilder<T> defaultBuilder,
+);
 
 /// Builds the package-default Cupertino primary submenu trigger.
 typedef CupertinoSubmenuButtonDefaultBuilder<T extends Object> =
@@ -131,13 +131,12 @@ typedef CupertinoSubmenuButtonDefaultBuilder<T extends Object> =
 ///
 /// Call [defaultBuilder] from a descendant [BuildContext] to retain the
 /// package-owned button, focus, tooltip, semantics, and menu behavior.
-typedef CupertinoSubmenuButtonBuilder<T extends Object> =
-    Widget Function(
-      BuildContext context,
-      AdaptiveAction<T> action,
-      VoidCallback? onPressed,
-      CupertinoSubmenuButtonDefaultBuilder<T> defaultBuilder,
-    );
+typedef CupertinoSubmenuButtonBuilder<T extends Object> = Widget Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+  VoidCallback? onPressed,
+  CupertinoSubmenuButtonDefaultBuilder<T> defaultBuilder,
+);
 
 /// Paints a Cupertino action focus halo over [decoration].
 ///
@@ -145,42 +144,41 @@ typedef CupertinoSubmenuButtonBuilder<T extends Object> =
 /// builder only replaces the visual treatment. Its function signature
 /// intentionally matches the sidebar focus hook so an app can reuse one
 /// painter across packages.
-typedef CupertinoActionFocusHaloBuilder =
-    Widget Function(
-      BuildContext context, {
-      required Widget child,
-      required bool visible,
-      required ShapeDecoration decoration,
-    });
+typedef CupertinoActionFocusHaloBuilder = Widget Function(
+  BuildContext context, {
+  required Widget child,
+  required bool visible,
+  required ShapeDecoration decoration,
+});
 
 /// Builds the complete Cupertino menu content for one adaptive [action].
 ///
 /// Return `null` to use the renderer's default recursive rendering of
 /// [AdaptiveAction.children]. A non-null result replaces that complete menu
 /// subtree and must not be empty.
-typedef CupertinoActionMenuBuilder<T extends Object> =
-    List<Widget>? Function(BuildContext context, AdaptiveAction<T> action);
+typedef CupertinoActionMenuBuilder<T extends Object> = List<Widget>? Function(
+  BuildContext context,
+  AdaptiveAction<T> action,
+);
 
 /// Builds the default Cupertino overflow-menu trigger.
 ///
 /// Pass [icon] to override only the trigger icon while retaining the default
 /// Cupertino button, focus, semantics, and menu-anchor behavior.
-typedef CupertinoOverflowButtonDefaultBuilder =
-    Widget Function(
-      BuildContext context,
-      VoidCallback onPressed, {
-      Widget? icon,
-    });
+typedef CupertinoOverflowButtonDefaultBuilder = Widget Function(
+  BuildContext context,
+  VoidCallback onPressed, {
+  Widget? icon,
+});
 
 /// Overrides the Cupertino overflow-menu trigger.
 ///
 /// The renderer continues to own the menu and supplies its toggle callback.
-typedef CupertinoOverflowButtonBuilder =
-    Widget Function(
-      BuildContext context,
-      VoidCallback onPressed,
-      CupertinoOverflowButtonDefaultBuilder defaultBuilder,
-    );
+typedef CupertinoOverflowButtonBuilder = Widget Function(
+  BuildContext context,
+  VoidCallback onPressed,
+  CupertinoOverflowButtonDefaultBuilder defaultBuilder,
+);
 
 /// A forced primary-button presentation for [CupertinoAdaptiveActions].
 ///
@@ -1492,12 +1490,11 @@ final class _CupertinoPrimaryLabel extends StatelessWidget {
   }
 }
 
-typedef _CupertinoMenuTriggerBuilder =
-    Widget Function(
-      BuildContext context,
-      VoidCallback toggle,
-      FocusNode focusNode,
-    );
+typedef _CupertinoMenuTriggerBuilder = Widget Function(
+  BuildContext context,
+  VoidCallback toggle,
+  FocusNode focusNode,
+);
 
 final class _CupertinoMenuTriggerFocusHalo extends StatelessWidget {
   const _CupertinoMenuTriggerFocusHalo({
