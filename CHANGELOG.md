@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
 
 - **Breaking:** Require Flutter 3.47 / Dart 3.13 and the standalone
   `material_ui` / `cupertino_ui` packages.
